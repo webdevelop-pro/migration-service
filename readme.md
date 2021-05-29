@@ -39,3 +39,10 @@ There is two main migration service usage:
 will apply all new migrations locally
 - automatically applying migrations during merging to dev|stage|master branch
 Once github PR reviewed and merged to one of those branches service will execute new migrations automatically
+
+
+## Env variables
+- FORCE_APPLY=true force apply
+- APPLY_ONLY=true  only apply
+- MIGRATION_DIR=./migrations/  yaml file location
+
