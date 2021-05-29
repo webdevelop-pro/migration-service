@@ -14,6 +14,7 @@ type API struct {
 	migrations MigrationService
 }
 
+// MigrationService ...
 type MigrationService interface {
 	ServiceVersion(name string) (int, error)
 	ServiceExists(name string) bool
@@ -30,7 +31,7 @@ func NewAPI(log zerolog.Logger, migrations MigrationService) *API {
 	return a
 }
 
-// ApplyMigrations applies 'noAuto' migrations to the specified service
+// HandleApplyMigrations applies 'noAuto' migrations to the specified service
 func (a *API) HandleApplyMigrations(w http.ResponseWriter, r *http.Request) {
 	serviceName := r.URL.Query().Get("service")
 	if serviceName == "" || !a.migrations.ServiceExists(serviceName) {

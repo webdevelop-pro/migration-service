@@ -3,32 +3,21 @@
 PKG_LIST=`go list ./... | grep -v /vendor/`
 GO_FILES=`find . -name '*.go' | grep -v _test.go`
 WORK_DIR=`pwd`
+COMPANY=webdevelop-pro
+SERVICE=migration-service
 
 function docker_build {
-  docker build -t webdevelop-pro/migration-worker .
+  docker build -t ${COMPANY}/${SERVICE} .
 }
 
 function docker_run {
-  docker stop migration-worker
-  docker rm migration-worker
-  docker run --name migration-worker --env-file .env.dev -d webdevelop-pro/migration-worker
-}
-
-function docker_db {
-  docker run --mount type=tmpfs,destination=${HOME}/tmpfs --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=test_webdevelop_pro -e POSTGRES_USER=postgres -p 5432:5432 -d postgres
-}
-
-function gcloud_db {
-  docker run --mount type=tmpfs,destination=${HOME}/tmpfs --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=test_webdevelop_pro -e POSTGRES_USER=postgres -p 5432:5432 -d postgres
-}
-
-function docker_start {
-  docker_build && 
-  docker_run
+  docker stop ${SERVICE}
+  docker rm ${SERVICE}
+  docker run --name ${SERVICE} --env-file .env.dev -d ${COMPANY}/${SERVICE}
 }
 
 function build {
-  go build -ldflags "-s -w" -o app ./cmd/main/*.go &&
+  go build -ldflags "-s -w" -o app ./cmd/server/*.go &&
   chmod +x app
 }
 
@@ -50,24 +39,26 @@ test)
   ;;
 
 race)
-	go test -race -short ${PKG_LIST}
+  go test -race -short ${PKG_LIST}
   ;;
 
 memory)
-	go test -msan -short ${PKG_LIST}
+  CC=clang go test -msan -short ${PKG_LIST}
   ;;
 
 coverage)
-	./etc/coverage.sh;
-  ;;
-
-coverhtml)
-	./etc/coverage.sh html;
+  mkdir /tmp/coverage > /dev/null
+  rm /tmp/coverage/*.cov
+  for package in ${PKG_LIST}; do
+    go test -covermode=count -coverprofile "/tmp/coverage/${package##*/}.cov" "$package" ;
+  done
+  tail -q -n +2 /tmp/coverage/*.cov >> /tmp/coverage/coverage.cov
+  go tool cover -func=/tmp/coverage/coverage.cov
   ;;
 
 run)
-	build
-	./app
+  build
+  ./app
   ;;
 
 gosec)
@@ -76,17 +67,17 @@ gosec)
   ;;
 
 build)
-	build
+  build
   ;;
 
 help)
-	cat make.sh | grep "^[a-z]*)"
+  cat make.sh | grep "^[a-z-]*)"
   ;;
 
 doc)
   for f in $PKG_LIST;
   do
-    folder=${f/github.com\/webdevelop-pro\/migration-worker\//./}
+    folder=${f/github.com\/${COMPANY}\/${SERVICE}\//./}
     godoc2md $folder > "${folder}/README.md"
   done
   ;;
@@ -95,18 +86,12 @@ docker-build)
   docker_build
   ;;
 
-docker-start)
-  docker_db;
-  docker_build &&
+docker-run)
   docker_run
   ;;
 
-docker-db)
-  docker_db
-  ;;
-
-docker-deploy)
-  gcloud builds submit --tag gcr.io/webdevelop-pro/migration-worker:dev
+gcloud-deploy)
+  gcloud builds submit --tag gcr.io/${COMPANY}/${SERVICE}:dev
   ;;
 
 *)
