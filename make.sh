@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 PKG_LIST=`go list ./... | grep -v /vendor/`
 GO_FILES=`find . -name '*.go' | grep -v _test.go`
@@ -6,17 +6,17 @@ WORK_DIR=`pwd`
 COMPANY=webdevelop-pro
 SERVICE=migration-service
 
-function docker_build {
+docker_build() {
   docker build -t ${COMPANY}/${SERVICE} .
 }
 
-function docker_run {
+docker_run() {
   docker stop ${SERVICE}
   docker rm ${SERVICE}
   docker run --name ${SERVICE} --env-file .env.dev -d ${COMPANY}/${SERVICE}
 }
 
-function build {
+build() {
   go build -ldflags "-s -w" -o app ./cmd/server/*.go &&
   chmod +x app
 }
