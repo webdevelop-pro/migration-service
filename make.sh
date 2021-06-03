@@ -21,6 +21,11 @@ build() {
   chmod +x app
 }
 
+build_test() {
+  go build -ldflags "-s -w" -o test-migration ./cmd/test-migration/*.go &&
+  chmod +x test-migration
+}
+
 case $1 in
 
 install)
@@ -68,6 +73,10 @@ gosec)
 
 build)
   build
+  ;;
+
+build-test)
+  build_test
   ;;
 
 help)
