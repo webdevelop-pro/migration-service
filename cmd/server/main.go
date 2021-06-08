@@ -31,8 +31,22 @@ type config struct {
 	ApplyOnly        bool   `split_words:"true"`
 }
 
+// SeverityHook structure for add severity field in log
+type SeverityHook struct{}
+
+// Run convert info to severity
+func (h SeverityHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
+	if level != zerolog.NoLevel {
+		e.Str("severity", strings.ToUpper(level.String()))
+	} else {
+		e.Str("severity", strings.ToUpper(zerolog.ErrorLevel.String()))
+		e.Str("message", "Don't use logs with NoLevel")
+	}
+}
+
 func main() {
-	log := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	log := zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(SeverityHook{})
+
 	var cfg config
 	err := envconfig.Process("", &cfg)
 	if err != nil {
