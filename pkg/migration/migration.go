@@ -225,8 +225,3 @@ func (s *Set) ServiceVersion(name string) (int, error) {
 	}
 	return ver, nil
 }
-
-/*
-	insert into user_user (id, email, username, first_name, last_name, date_joined, is_superuser, is_staff)
-	values ('98914f21-a534-403f-8f7e-14792c2d3577', 'cachealot@gmail.com', 'cachealot_gmail.com','vlad', 'taras', now(), true, true);
-*/

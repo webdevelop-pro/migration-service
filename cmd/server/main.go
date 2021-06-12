@@ -1,45 +1,63 @@
 package main
 
 import (
-	"net/http"
+	"context"
 	"os"
-	"path"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"time"
 
 	"github.com/jackc/pgx"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
-	"github.com/webdevelop-pro/migration-service/internal/api"
+	"github.com/webdevelop-pro/migration-service/internal/cli"
+	"github.com/webdevelop-pro/migration-service/internal/config"
+	"github.com/webdevelop-pro/migration-service/internal/logger"
 	"github.com/webdevelop-pro/migration-service/pkg/migration"
+	"go.uber.org/fx"
 )
 
-type config struct {
-	Host             string `default:""`
-	Port             string `default:"8085"`
-	DbDatabase       string `required:"true" split_words:"true"`
-	DbHost           string `required:"true" split_words:"true"`
-	DbPort           uint16 `default:"5432" split_words:"true"`
-	DbUser           string `required:"true" split_words:"true"`
-	DbPassword       string `split_words:"true"`
-	DbMaxConnections int    `default:"5" split_words:"true"`
-	MigrationDir     string `split_words:"true"`
-	ForceApply       bool   `split_words:"true"`
-	ApplyOnly        bool   `split_words:"true"`
+func main() {
+	fx.New(
+		// Provide default logger for fx
+		fx.Logger(logger.NewLogger("fx", os.Stdout, config.GetConfig())),
+
+		// Provide dependencies
+		fx.Provide(
+			// Configuration
+			config.GetConfig,
+			// Postgres
+			cli.ConnnectToDB,
+			// Migration
+			migration.NewSet,
+		),
+		fx.Invoke(
+			// Start syncing
+			func(lc fx.Lifecycle, shutdowner fx.Shutdowner, cfg *config.Config, pg *pgx.ConnPool, mSet *migration.Set) {
+				l := logger.NewLogger("cliApp", os.Stdout, cfg)
+				lc.Append(fx.Hook{
+					OnStart: func(_ context.Context) error {
+						l.Debug().Msg("start app")
+						cli.StartApp(cfg, pg, mSet)
+						shutdowner.Shutdown()
+						return nil
+					},
+					OnStop: func(_ context.Context) error {
+						l.Debug().Msg("end app")
+						return nil
+					},
+				},
+				)
+			},
+		),
+	).Run()
 }
 
+/*
 func main() {
 	log := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	var cfg config
-	err := envconfig.Process("", &cfg)
+	cfg, err := config.NewConfig()
 	if err != nil {
 		_ = envconfig.Usage("", &cfg)
 		log.Fatal().Err(err).Msg("failed to parse config")
 		return
 	}
+
 	var pg *pgx.ConnPool
 	i := 0
 	log.Info().Interface("cfg", cfg).Msg("connecting to db")
@@ -90,43 +108,4 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to start REST API listener")
 	}
 }
-
-func pgConnect(cfg config) (*pgx.ConnPool, error) {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	var errCnt int
-	for ; ; <-ticker.C {
-		pgConfig := new(pgx.ConnConfig)
-		pgConfig.TLSConfig = nil
-		connPoolConfig := pgx.ConnPoolConfig{
-			ConnConfig: pgx.ConnConfig{
-				Host:     cfg.DbHost,
-				Port:     cfg.DbPort,
-				User:     cfg.DbUser,
-				Password: cfg.DbPassword,
-				Database: cfg.DbDatabase,
-			},
-			AcquireTimeout: 10 * time.Second,
-			MaxConnections: cfg.DbMaxConnections,
-		}
-		pg, err := pgx.NewConnPool(connPoolConfig)
-		if err != nil {
-			if errCnt > 60 {
-				return nil, errors.Wrap(err, "failed to connect to db")
-			}
-			errCnt++
-			continue
-		}
-		return pg, nil
-	}
-}
-
-func binaryPath() string {
-	ex, err := os.Executable()
-	if err == nil && !strings.HasPrefix(ex, "/var/folders/") && !strings.HasPrefix(ex, "/tmp/go-build") {
-		return path.Dir(ex)
-	}
-	_, callerFile, _, _ := runtime.Caller(1)
-	ex = filepath.Dir(callerFile)
-	return ex
-}
+*/
