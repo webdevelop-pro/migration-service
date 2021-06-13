@@ -41,8 +41,9 @@ func pgConnect(cfg *config.Config) (*pgx.ConnPool, error) {
 	}
 }
 
+// ConnnectToDB try tonnects to database
 func ConnnectToDB(cfg *config.Config) *pgx.ConnPool {
-	l := logger.NewLogger("cliApp", os.Stdout, cfg)
+	l := logger.NewLogger("cli", os.Stdout, cfg)
 	l.Debug().Interface("cfg", cfg).Msg("connecting to db")
 	var pg *pgx.ConnPool
 	var err error

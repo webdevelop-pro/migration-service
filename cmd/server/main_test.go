@@ -6,10 +6,11 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
+	"github.com/webdevelop-pro/migration-service/internal/config"
 	"github.com/webdevelop-pro/migration-service/pkg/migration"
 )
 
-func initConfig() (cfg config, pg *pgx.ConnPool, err error) {
+func initConfig() (cfg config.Config, pg *pgx.ConnPool, err error) {
 	err = envconfig.Process("", &cfg)
 	if err != nil {
 		err = errors.Wrap(err, "failed to parse config")

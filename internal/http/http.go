@@ -16,7 +16,7 @@ func StartApp(cfg *config.Config, pg *pgx.ConnPool, mSet *migration.Set) {
 	l := logger.NewLogger("http", os.Stdout, cfg)
 	defer pg.Close()
 
-	if cfg.Http.Host == "" || cfg.Http.Port == "" {
+	if cfg.HTTP.Host == "" || cfg.HTTP.Port == "" {
 		l.Fatal().Msg("please HOST and PORT envs")
 	}
 
@@ -28,7 +28,7 @@ func StartApp(cfg *config.Config, pg *pgx.ConnPool, mSet *migration.Set) {
 	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	if err := http.ListenAndServe(cfg.Http.Host+":"+cfg.Http.Port, mux); err != nil {
+	if err := http.ListenAndServe(cfg.HTTP.Host+":"+cfg.HTTP.Port, mux); err != nil {
 		l.Fatal().Err(err).Msg("failed to start REST API listener")
 	}
 }

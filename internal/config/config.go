@@ -6,9 +6,10 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+// Config application config
 type Config struct {
 	Database     database
-	Http         http
+	HTTP         http
 	LogLevel     string `envconfig:"LOG_LEVEL" default:"debug"`
 	LogConsole   bool   `envconfig:"LOG_CONSOLE" default:"false"`
 	GitHash      string

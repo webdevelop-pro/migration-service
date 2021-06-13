@@ -42,9 +42,11 @@ func main() {
 						argsWithoutProg := os.Args[1:]
 						if len(argsWithoutProg) == 0 || argsWithoutProg[0] == "-cli" {
 							cli.StartApp(cfg, pg, mSet)
-							shutdowner.Shutdown()
+							if err := shutdowner.Shutdown(); err != nil {
+								l.Fatal().Err(err).Msg("cannot stop application")
+							}
 						} else if argsWithoutProg[0] == "-http-server" {
-							l.Debug().Msgf("start http app %s:%s", cfg.Http.Host, cfg.Http.Port)
+							l.Debug().Msgf("start http app %s:%s", cfg.HTTP.Host, cfg.HTTP.Port)
 							go http.StartApp(cfg, pg, mSet)
 						} else {
 							l.Fatal().Msgf(`
