@@ -1,0 +1,19 @@
+service: user-api
+migrations:
+- version: 1
+  allowError: false
+  queries:
+  - |
+    BEGIN;
+    insert into user_user 
+      (id, email, first_name, date_joined, is_superuser, is_staff) values
+      ('98914f21-a534-403f-8f7e-14792c2d3577', 'example1@gmail.com', 'vlad', now(), true, true),
+      ('98914f21-a534-403f-8f7e-14792c2d3578', 'example2@gmail.com', 'vova', now(), true, true);
+    COMMIT;
+
+- version: 2
+  queries:
+  - |
+    BEGIN;
+    ALTER TABLE migration_service add column with an error syntax;
+    COMMIT;

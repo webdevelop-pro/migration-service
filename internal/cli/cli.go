@@ -43,7 +43,7 @@ func pgConnect(cfg *config.Config) (*pgx.ConnPool, error) {
 
 func ConnnectToDB(cfg *config.Config) *pgx.ConnPool {
 	l := logger.NewLogger("cliApp", os.Stdout, cfg)
-	l.Info().Interface("cfg", cfg).Msg("connecting to db")
+	l.Debug().Interface("cfg", cfg).Msg("connecting to db")
 	var pg *pgx.ConnPool
 	var err error
 	i := 0
@@ -66,13 +66,7 @@ func ConnnectToDB(cfg *config.Config) *pgx.ConnPool {
 
 // StartApp is function that registers start of http server in lifecycle
 func StartApp(cfg *config.Config, pg *pgx.ConnPool, mSet *migration.Set) {
-	l := logger.NewLogger("cliApp", os.Stdout, cfg)
-
-	err := migration.ReadDir(cfg.MigrationDir, mSet)
-	if err != nil {
-		l.Fatal().Err(err).Msg("failed to read directory with migrations")
-		return
-	}
+	l := logger.NewLogger("cli", os.Stdout, cfg)
 
 	n, err := mSet.ApplyAll(cfg.ForceApply)
 	if err != nil {

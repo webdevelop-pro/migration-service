@@ -2,15 +2,16 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
+	"github.com/webdevelop-pro/migration-service/internal/logger"
 )
 
 // API is a REST API.
 type API struct {
-	log        zerolog.Logger
+	log        logger.Logger
 	migrations MigrationService
 }
 
@@ -23,7 +24,7 @@ type MigrationService interface {
 }
 
 // NewAPI returns new API insance.
-func NewAPI(log zerolog.Logger, migrations MigrationService) *API {
+func NewAPI(log logger.Logger, migrations MigrationService) *API {
 	a := &API{
 		log:        log,
 		migrations: migrations,
@@ -43,11 +44,12 @@ func (a *API) HandleApplyMigrations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errors.Wrap(err, "failed to get current service version").Error(), http.StatusInternalServerError)
 		return
 	}
-	n, lastVersion, err := a.migrations.Apply(serviceName, -1, ver, false, true)
+	n, lastVersion, err := a.migrations.Apply(serviceName, -1, ver, false, false)
 	if err != nil {
 		http.Error(w, errors.Wrap(err, "failed to apply migrations").Error(), http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("applied version", serviceName, n, lastVersion)
 	if lastVersion > ver {
 		if err := a.migrations.BumpServiceVersion(serviceName, lastVersion); err != nil {
 			a.log.Error().Err(err).Msg("failed to bump service version")

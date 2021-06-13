@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Database     database
+	Http         http
 	LogLevel     string `envconfig:"LOG_LEVEL" default:"debug"`
 	LogConsole   bool   `envconfig:"LOG_CONSOLE" default:"false"`
 	GitHash      string
@@ -22,6 +23,11 @@ type database struct {
 	Host           string `envconfig:"DB_HOST" default:"localhost"`
 	Port           uint16 `envconfig:"DB_PORT" default:"5432"`
 	MaxConnections int    `envconfig:"DB_MAX_CONNECTIONS" default:"100"`
+}
+
+type http struct {
+	Host string `envconfig:"HOST"`
+	Port string `envconfig:"PORT"`
 }
 
 var cfg *Config

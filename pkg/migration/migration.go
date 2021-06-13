@@ -158,6 +158,8 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 			for _, query := range migration.Queries {
 				_, err := s.pg.Exec(query)
 				if err != nil && !migration.AllowError {
+					// ToDo
+					// Create error output more beautiful
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
 			}
@@ -187,14 +189,10 @@ func (s *Set) ApplyAll(force bool) (int, error) {
 				if curLastVersion, ok := lastVersions[service]; !ok || lastVersion > curLastVersion {
 					lastVersions[service] = lastVersion
 				}
-			}
-		}
-	}
-	for service, ver := range lastVersions {
-		if ver > 0 {
-			err := s.BumpServiceVersion(service, ver)
-			if err != nil {
-				return n, errors.Wrapf(err, "failed to bump service version (%s)", service)
+				err := s.BumpServiceVersion(service, lastVersion)
+				if err != nil {
+					return n, errors.Wrapf(err, "failed to bump service version (%s)", service)
+				}
 			}
 		}
 	}

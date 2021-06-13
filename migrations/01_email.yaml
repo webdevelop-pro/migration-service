@@ -1,0 +1,28 @@
+service: email-worker
+migrations:
+- version: 1
+  queries:
+  - |
+    BEGIN;
+    CREATE TABLE IF NOT EXISTS email_email (
+      id              serial PRIMARY KEY NOT NULL,
+
+      -- required
+      recipient       character varying(120) NOT NULL,
+      recipient_name  character varying(120) NOT NULL,
+      sender          character varying(120) NOT NULL,
+      sender_name     character varying(120) NOT NULL,
+      subject         character varying(255) NOT NULL,
+      template        character varying(255) NOT NULL,
+      
+      -- dates
+      created_at    timestamp with time zone NOT NULL DEFAULT NOW(),
+      updated_at timestamp with time zone DEFAULT now() NOT NULL
+    );
+
+    CREATE TRIGGER set_timestamp_email_email
+        BEFORE UPDATE ON email_email
+        FOR EACH ROW
+        EXECUTE PROCEDURE trigger_set_timestamp();
+
+    COMMIT;

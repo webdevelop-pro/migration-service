@@ -1,0 +1,30 @@
+service: email
+migrations:
+- version: 1
+  queries:
+  - |
+    BEGIN;
+    CREATE OR REPLACE FUNCTION sendemail() RETURNS TRIGGER AS $$
+    DECLARE
+      notification json;
+      BEGIN
+        notification = json_build_object(
+          'id', new.id,
+          'recipient', new.recipient,
+          'recipient_name', new.recipient_name,
+          'sender', new.sender,
+          'sender_name', new.sender_name,
+          'subject', new.subject,
+          'template', new.template,
+          'data', new.data
+        );
+        PERFORM pg_notify('email_events', notification::text);
+        RETURN NEW;
+      END;
+    $$ LANGUAGE plpgsql;
+    
+    DROP TRIGGER IF EXISTS email_trigger ON email_email;
+    CREATE TRIGGER email_trigger AFTER INSERT ON email_email
+      FOR EACH ROW EXECUTE PROCEDURE sendemail();
+
+    COMMIT;
