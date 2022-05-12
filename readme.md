@@ -45,4 +45,3 @@ Once github PR reviewed and merged to one of those branches service will execute
 - FORCE_APPLY=true force apply
 - APPLY_ONLY=true  only apply
 - MIGRATION_DIR=./migrations/  yaml file location
-
