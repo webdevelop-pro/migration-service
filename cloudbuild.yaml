@@ -96,5 +96,9 @@ steps:
         else
           SVC=$_SERVICE_NAME
         fi
+        LATEST=$BRANCH_NAME-latest
 
         kubectl get deployment/$$SVC -o yaml | gke-deploy run -f - -i gcr.io/$PROJECT_ID/$$SVC:$COMMIT_SHA -a $$SVC
+
+        # we need latest build for tests
+        kubectl get deployment/$$SVC -o yaml | gke-deploy run -f - -i gcr.io/$PROJECT_ID/$$SVC:$LATEST -a $$SVC

@@ -4,6 +4,14 @@
 All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
 In order to work properly migration service require `migration_service` table to be created first
+```sql
+ CREATE TABLE migration_service (
+      id serial NOT NULL PRIMARY KEY,
+      name varchar NOT NULL UNIQUE,
+      version int NOT NULL DEFAULT 0,
+      created_at timestamp with time zone DEFAULT now() NOT NULL
+  );
+```
 
 
 ## File structure

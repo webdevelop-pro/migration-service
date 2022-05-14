@@ -1,0 +1,8 @@
+service: email_seeds
+migrations:
+- version: 1
+  queries:
+  - |
+    INSERT INTO email_emails
+      (recipient, sender, subject, template) values
+      ('vladka+321@webdevelop.pro', 'manager@webdevelop.pro', 'test', 'welcome.pug');
