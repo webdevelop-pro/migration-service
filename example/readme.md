@@ -1,5 +1,5 @@
 # Migration usage example
-
+If you haven't read description information yet, please check it [here](../#database-migration-service)
 
 ## Files structure
 - `.example.env` - required envs
