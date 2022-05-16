@@ -158,15 +158,18 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 			}
 			for _, query := range migration.Queries {
 				pgTX, _ := s.pg.Begin()
-				_, err := pgTX.Query(query)
+				res, err := pgTX.Exec(query)
 				if err != nil && !migration.AllowError {
 					pgTX.Rollback()
+					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
+				}
+				if err := pgTX.Commit(); err != nil && !migration.AllowError {
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
 
 				// ToDo
 				// use json logger
-				fmt.Printf("executed query for %s, version: %d\n", name, ver)
+				fmt.Printf("executed query for %s, version: %d, result: %s\n", name, ver, res)
 			}
 			lastVersion = ver
 			n++
@@ -179,6 +182,7 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 func (s *Set) ApplyAll(force bool) (int, error) {
 	var n int
 	lastVersions := make(map[string]int)
+
 	for _, priority := range s.priorities() {
 		for _, service := range s.services(priority) {
 			ver, err := s.ServiceVersion(service)
