@@ -1,6 +1,6 @@
 service: email_seeds
 migrations:
-- version: 1
+- version: 2
   queries:
   - |
     INSERT INTO email_emails
