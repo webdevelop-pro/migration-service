@@ -158,9 +158,9 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 			}
 			for _, query := range migration.Queries {
 				pgTX, _ := s.pg.Begin()
+				defer pgTX.Rollback()
 				res, err := pgTX.Exec(query)
 				if err != nil && !migration.AllowError {
-					pgTX.Rollback()
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
 				if err := pgTX.Commit(); err != nil && !migration.AllowError {
