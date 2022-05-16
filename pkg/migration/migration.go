@@ -3,7 +3,6 @@ package migration
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/jackc/pgx"
@@ -158,14 +157,16 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 				continue
 			}
 			for _, query := range migration.Queries {
-				// Add begin / commit automatically for every query
-				if strings.ToLower(query[0:6]) != "begin;" {
-					query = fmt.Sprintf("BEGIN;\n%s\nCOMMIT;", query)
-				}
-				_, err := s.pg.Exec(query)
+				pgTX, _ := s.pg.Begin()
+				_, err := pgTX.Query(query)
 				if err != nil && !migration.AllowError {
+					pgTX.Rollback()
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
+
+				// ToDo
+				// use json logger
+				fmt.Printf("executed query for %s, version: %d\n", name, ver)
 			}
 			lastVersion = ver
 			n++
