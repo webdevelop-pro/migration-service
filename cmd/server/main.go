@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path"
@@ -9,130 +10,82 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/webdevelop-pro/go-common/db"
+	"github.com/webdevelop-pro/go-common/logger"
 	"github.com/webdevelop-pro/migration-service/internal/api"
 	"github.com/webdevelop-pro/migration-service/pkg/migration"
+	"go.uber.org/fx"
 )
 
-type config struct {
-	Host             string `default:""`
-	Port             string `default:"8085"`
-	DbDatabase       string `required:"true" split_words:"true"`
-	DbHost           string `required:"true" split_words:"true"`
-	DbPort           uint16 `default:"5432" split_words:"true"`
-	DbUser           string `required:"true" split_words:"true"`
-	DbPassword       string `split_words:"true"`
-	DbMaxConnections int    `default:"5" split_words:"true"`
-	MigrationDir     string `split_words:"true"`
-	ForceApply       bool   `split_words:"true"`
-	ApplyOnly        bool   `split_words:"true"`
-}
-
-// SeverityHook structure for add severity field in log
-type SeverityHook struct{}
-
-// Run convert info to severity
-func (h SeverityHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
-	if level != zerolog.NoLevel {
-		e.Str("severity", strings.ToUpper(level.String()))
-	} else {
-		e.Str("severity", strings.ToUpper(zerolog.ErrorLevel.String()))
-		e.Str("message", "Don't use logs with NoLevel")
-	}
-}
-
+// @schemes https
 func main() {
-	log := zerolog.New(os.Stdout).With().Timestamp().Logger().Hook(SeverityHook{})
+	fx.New(
+		fx.Logger(logger.NewDefaultComponent("fx")),
+		fx.Provide(
+			// Default logger
+			logger.NewDefault,
+			// Database connection
+			db.GetConfig,
+			db.NewPool,
+			// Repository
+			migration.GetConfig(),
+		),
+		// Init http handlers
+		// http.InitServer(),
 
-	var cfg config
-	err := envconfig.Process("", &cfg)
-	if err != nil {
-		_ = envconfig.Usage("", &cfg)
-		log.Fatal().Err(err).Msg("failed to parse config")
-		return
-	}
-	var pg *pgx.ConnPool
-	i := 0
-	log.Info().Interface("cfg", cfg).Msg("connecting to db")
-	ticker := time.NewTicker(time.Second)
-	for ; ; <-ticker.C {
-		i++
-		pg, err = pgConnect(cfg)
-		if err == nil || i > 60 {
-			break
-		}
-		log.Warn().Err(err).Msg("failed to connect to db")
-	}
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to db")
-		return
-	}
-	defer pg.Close()
-	ticker.Stop()
-
-	set := migration.NewSet(pg)
-	var migrationDir string
-	if cfg.MigrationDir != "" {
-		migrationDir = cfg.MigrationDir
-	} else {
-		migrationDir = filepath.Join(binaryPath(), "migrations")
-	}
-	err = migration.ReadDir(migrationDir, set)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to read directory with migrations")
-		return
-	}
-
-	n, err := set.ApplyAll(cfg.ForceApply)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to apply all migrations")
-		return
-	}
-	log.Info().Int("n", n).Msg("applied migrations")
-
-	if cfg.ApplyOnly {
-		return
-	}
-	svc := api.NewAPI(log.With().Str("module", "api").Logger(), set)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/apply", svc.HandleApplyMigrations)
-	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
-	if err = http.ListenAndServe(cfg.Host+":"+cfg.Port, mux); err != nil {
-		log.Fatal().Err(err).Msg("failed to start REST API listener")
-	}
+		fx.Invoke(
+			// Run HTTP server
+			registerHooks,
+		),
+	).Run()
 }
 
-func pgConnect(cfg config) (*pgx.ConnPool, error) {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	var errCnt int
-	for ; ; <-ticker.C {
-		pgConfig := new(pgx.ConnConfig)
-		pgConfig.TLSConfig = nil
-		connPoolConfig := pgx.ConnPoolConfig{
-			ConnConfig: pgx.ConnConfig{
-				Host:     cfg.DbHost,
-				Port:     cfg.DbPort,
-				User:     cfg.DbUser,
-				Password: cfg.DbPassword,
-				Database: cfg.DbDatabase,
+func registerHooks(
+	lifecycle fx.Lifecycle, log logger.Logger, dbConfig *db.Config,
+	dbPool *pgxpool.Pool, migrationCfg *migration.Config,
+) {
+	lifecycle.Append(
+		fx.Hook{
+			OnStart: func(context.Context) error {
+				set := migration.NewSet(dbPool)
+				var migrationDir string
+				if migrationCfg.MigrationDir != "" {
+					migrationDir = migrationCfg.MigrationDir
+				} else {
+					migrationDir = filepath.Join(binaryPath(), "migrations")
+				}
+				err := migration.ReadDir(migrationDir, set)
+				if err != nil {
+					log.Fatal().Err(err).Msg("failed to read directory with migrations")
+					return err
+				}
+
+				n, err := set.ApplyAll(migrationCfg.ForceApply)
+				if err != nil {
+					log.Fatal().Err(err).Msg("failed to apply all migrations")
+					return err
+				}
+				log.Info().Int("n", n).Msg("applied migrations")
+
+				if migrationCfg.ApplyOnly {
+					return nil
+				}
+				svc := api.NewAPI(log.With().Str("module", "api").Logger(), set)
+				mux := http.NewServeMux()
+				mux.HandleFunc("/apply", svc.HandleApplyMigrations)
+				mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+				if err = http.ListenAndServe(migrationCfg.Host+":"+migrationCfg.Port, mux); err != nil {
+					log.Fatal().Err(err).Msg("failed to start REST API listener")
+				}
+				log.Info().Msgf("started on: %s", time.Now().String())
+				return nil
 			},
-			AcquireTimeout: 10 * time.Second,
-			MaxConnections: cfg.DbMaxConnections,
-		}
-		pg, err := pgx.NewConnPool(connPoolConfig)
-		if err != nil {
-			if errCnt > 60 {
-				return nil, errors.Wrap(err, "failed to connect to db")
-			}
-			errCnt++
-			continue
-		}
-		return pg, nil
-	}
+			OnStop: func(context.Context) error {
+				return nil
+			},
+		},
+	)
 }
 
 func binaryPath() string {

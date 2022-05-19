@@ -1,13 +1,28 @@
 package migration
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"sync"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgconn"
+	pgx "github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
+	"github.com/webdevelop-pro/go-common/configurator"
+	"github.com/webdevelop-pro/go-common/logger"
 )
+
+type Config struct {
+	Host         string `default:""`
+	Port         string `default:"8085"`
+	MigrationDir string `split_words:"true"`
+	ForceApply   bool   `split_words:"true"`
+	ApplyOnly    bool   `split_words:"true"`
+}
+
+const PkgName = "migration"
 
 // Migration is a single migration.
 type Migration struct {
@@ -19,17 +34,29 @@ type Migration struct {
 // Set is a set of migrations for all services.
 type Set struct {
 	data map[int]map[string]map[int][]Migration
-	pg   *pgx.ConnPool
+	pg   *pgxpool.Pool
 	sync.Mutex
 }
 
 // NewSet returns new instance of Set.
-func NewSet(pg *pgx.ConnPool) *Set {
+func NewSet(pg *pgxpool.Pool) *Set {
 	s := &Set{
 		data: make(map[int]map[string]map[int][]Migration),
 		pg:   pg,
 	}
 	return s
+}
+
+// GetConfig return config from envs
+func GetConfig() *Config {
+	cfg := &Config{}
+
+	if err := configurator.NewConfiguration(cfg, PkgName); err != nil {
+		log := logger.NewDefaultComponent(PkgName)
+		log.Fatal().Err(err).Msgf("failed to get configuration of %s", PkgName)
+	}
+
+	return cfg
 }
 
 // ServiceExists returns true if there are known migrations for service.
@@ -157,13 +184,17 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 				continue
 			}
 			for _, query := range migration.Queries {
-				pgTX, _ := s.pg.Begin()
-				defer pgTX.Rollback()
-				res, err := pgTX.Exec(query)
+				var res pgconn.CommandTag
+				ctx := context.Background()
+				err := s.pg.BeginFunc(
+					ctx,
+					func(tx pgx.Tx) error {
+						var err error
+						res, err = tx.Exec(ctx, query)
+						return err
+					},
+				)
 				if err != nil && !migration.AllowError {
-					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
-				}
-				if err := pgTX.Commit(); err != nil && !migration.AllowError {
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
 
@@ -214,7 +245,9 @@ func (s *Set) ApplyAll(force bool) (int, error) {
 
 // BumpServiceVersion updates service version.
 func (s *Set) BumpServiceVersion(name string, ver int) error {
+	ctx := context.Background()
 	_, err := s.pg.Exec(
+		ctx,
 		`INSERT INTO migration_service (name, version) VALUES ($1, $2) ON CONFLICT(name) DO UPDATE SET version=$2`,
 		name, ver,
 	)
@@ -227,7 +260,8 @@ func (s *Set) BumpServiceVersion(name string, ver int) error {
 // ServiceVersion returns currently deployed version of the service.
 func (s *Set) ServiceVersion(name string) (int, error) {
 	var ver int
-	err := s.pg.QueryRow(`SELECT version FROM migration_service WHERE name=$1`, name).Scan(&ver)
+	ctx := context.Background()
+	err := s.pg.QueryRow(ctx, `SELECT version FROM migration_service WHERE name=$1`, name).Scan(&ver)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return 0, nil
@@ -236,8 +270,3 @@ func (s *Set) ServiceVersion(name string) (int, error) {
 	}
 	return ver, nil
 }
-
-/*
-	insert into user_user (id, email, username, first_name, last_name, date_joined, is_superuser, is_staff)
-	values ('98914f21-a534-403f-8f7e-14792c2d3577', 'cachealot@gmail.com', 'cachealot_gmail.com','vlad', 'taras', now(), true, true);
-*/
