@@ -2,7 +2,6 @@ package migration
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"sync"
 
@@ -15,11 +14,9 @@ import (
 )
 
 type Config struct {
-	Host         string `default:""`
-	Port         string `default:"8085"`
-	MigrationDir string `split_words:"true"`
-	ForceApply   bool   `split_words:"true"`
-	ApplyOnly    bool   `split_words:"true"`
+	Dir        string `required:"true"`
+	ForceApply bool   `required:"true" split_words:"true"`
+	ApplyOnly  bool   `split_words:"true" default:"false"`
 }
 
 const PkgName = "migration"
@@ -163,6 +160,7 @@ func (s *Set) serviceMigrations(name string, priority, minVersion int) map[int][
 
 // Apply applies migrations for specified service with version > minVersion.
 func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly bool) (int, int, error) {
+	log := logger.NewDefaultComponent("migrationSet")
 	migrations := s.serviceMigrations(name, priority, minVersion)
 	var n, lastVersion int
 	if len(migrations) == 0 {
@@ -198,9 +196,7 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
 
-				// ToDo
-				// use json logger
-				fmt.Printf("executed query for %s, version: %d, result: %s\n", name, ver, res)
+				log.Info().Msgf("executed query for %s, version: %d, result: %s\n", name, ver, res)
 			}
 			lastVersion = ver
 			n++

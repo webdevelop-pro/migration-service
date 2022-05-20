@@ -52,6 +52,6 @@ Once github PR reviewed and merged to one of those branches service will execute
 
 
 ## Env variables
-- FORCE_APPLY=true force apply
-- APPLY_ONLY=true  only apply
+- FORCE_APPLY=true will apply all migration, even market as NoAuto
+- APPLY_ONLY=true will only apply transaction but will not start http server
 - MIGRATION_DIR=./migrations/  yaml file location

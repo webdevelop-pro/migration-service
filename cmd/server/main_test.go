@@ -3,35 +3,17 @@ package main
 import (
 	"testing"
 
-	"github.com/jackc/pgx"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/pkg/errors"
+	"github.com/webdevelop-pro/go-common/db"
 	"github.com/webdevelop-pro/migration-service/pkg/migration"
 )
 
-func initConfig() (cfg config, pg *pgx.ConnPool, err error) {
-	err = envconfig.Process("", &cfg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to parse config")
-		return
-	}
-	pg, err = pgConnect(cfg)
-	if err != nil {
-		err = errors.Wrap(err, "failed to connect to db")
-		return
-	}
-	return
-}
-
 func TestIntegrity(t *testing.T) {
-	cfg, pg, err := initConfig()
-	if err != nil {
-		t.Errorf("failed to initialize: %v", err)
-		return
-	}
+	dbCfg := db.GetConfig()
+	pg := db.NewPool(dbCfg)
 	defer pg.Close()
+	cfg := migration.GetConfig()
 	set := migration.NewSet(pg)
-	err = migration.ReadDir(cfg.MigrationDir, set)
+	err := migration.ReadDir(cfg.Dir, set)
 	if err != nil {
 		t.Errorf("failed to read directory with migrations: %v", err)
 		return

@@ -2,18 +2,13 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"os"
-	"path"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/webdevelop-pro/go-common/db"
 	"github.com/webdevelop-pro/go-common/logger"
-	"github.com/webdevelop-pro/migration-service/internal/api"
+	"github.com/webdevelop-pro/migration-service/internal/app"
 	"github.com/webdevelop-pro/migration-service/pkg/migration"
 	"go.uber.org/fx"
 )
@@ -29,10 +24,9 @@ func main() {
 			db.GetConfig,
 			db.NewPool,
 			// Repository
-			migration.GetConfig(),
+			migration.GetConfig,
+			migration.NewSet,
 		),
-		// Init http handlers
-		// http.InitServer(),
 
 		fx.Invoke(
 			// Run HTTP server
@@ -43,23 +37,17 @@ func main() {
 
 func registerHooks(
 	lifecycle fx.Lifecycle, log logger.Logger, dbConfig *db.Config,
-	dbPool *pgxpool.Pool, migrationCfg *migration.Config,
+	dbPool *pgxpool.Pool, migrationCfg *migration.Config, set *migration.Set,
 ) {
 	lifecycle.Append(
 		fx.Hook{
 			OnStart: func(context.Context) error {
-				set := migration.NewSet(dbPool)
-				var migrationDir string
-				if migrationCfg.MigrationDir != "" {
-					migrationDir = migrationCfg.MigrationDir
-				} else {
-					migrationDir = filepath.Join(binaryPath(), "migrations")
-				}
-				err := migration.ReadDir(migrationDir, set)
+				err := migration.ReadDir(migrationCfg.Dir, set)
 				if err != nil {
 					log.Fatal().Err(err).Msg("failed to read directory with migrations")
 					return err
 				}
+				log.Info().Msgf("started on: %s", time.Now().String())
 
 				n, err := set.ApplyAll(migrationCfg.ForceApply)
 				if err != nil {
@@ -69,31 +57,25 @@ func registerHooks(
 				log.Info().Int("n", n).Msg("applied migrations")
 
 				if migrationCfg.ApplyOnly {
+					// clean up here
+					dbPool.Close()
+					os.Exit(3)
 					return nil
 				}
-				svc := api.NewAPI(log.With().Str("module", "api").Logger(), set)
-				mux := http.NewServeMux()
-				mux.HandleFunc("/apply", svc.HandleApplyMigrations)
-				mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
-				if err = http.ListenAndServe(migrationCfg.Host+":"+migrationCfg.Port, mux); err != nil {
-					log.Fatal().Err(err).Msg("failed to start REST API listener")
-				}
-				log.Info().Msgf("started on: %s", time.Now().String())
+
+				appCfg := app.GetConfig()
+				myApp := app.New(
+					logger.NewDefaultComponent("app"),
+					appCfg,
+					set,
+				)
+				myApp.StartServer()
 				return nil
 			},
 			OnStop: func(context.Context) error {
+				dbPool.Close()
 				return nil
 			},
 		},
 	)
-}
-
-func binaryPath() string {
-	ex, err := os.Executable()
-	if err == nil && !strings.HasPrefix(ex, "/var/folders/") && !strings.HasPrefix(ex, "/tmp/go-build") {
-		return path.Dir(ex)
-	}
-	_, callerFile, _, _ := runtime.Caller(1)
-	ex = filepath.Dir(callerFile)
-	return ex
 }
