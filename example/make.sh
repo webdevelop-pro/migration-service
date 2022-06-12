@@ -18,9 +18,9 @@ docker_run() {
 
 
 build() {
-  wget https://github.com/webdevelop-pro/migration-service/releases/download/0.1/app-0.1-linux-amd64.tar.gz
-  tar xzf app-0.1-linux-amd64.tar.gz
-  rm -rf app-0.1-linux-amd64.tar.gz
+  wget https://github.com/webdevelop-pro/migration-service/archive/refs/tags/0.2.tar.gz
+  tar xzf 0.2.tar.gz
+  rm -rf 0.2.tar.gz
   chmod +x app
 }
 
