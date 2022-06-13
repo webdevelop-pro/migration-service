@@ -1,6 +1,7 @@
 package main
 
 import (
+	migration2 "github.com/webdevelop-pro/migration-service/internal/domain/migration"
 	"testing"
 
 	"github.com/webdevelop-pro/go-common/db"
@@ -13,7 +14,7 @@ func TestIntegrity(t *testing.T) {
 	defer pg.Close()
 	cfg := migration.GetConfig()
 	set := migration.NewSet(pg)
-	err := migration.ReadDir(cfg.Dir, set)
+	err := migration2.ReadDir(cfg.Dir, set)
 	if err != nil {
 		t.Errorf("failed to read directory with migrations: %v", err)
 		return

@@ -123,3 +123,5 @@ modules.xml
 .env
 .env.dev
 *.dump
+
+go.work

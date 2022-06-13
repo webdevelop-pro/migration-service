@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	migration2 "github.com/webdevelop-pro/migration-service/internal/domain/migration"
 	"os"
 	"time"
 
@@ -42,7 +43,7 @@ func registerHooks(
 	lifecycle.Append(
 		fx.Hook{
 			OnStart: func(context.Context) error {
-				err := migration.ReadDir(migrationCfg.Dir, set)
+				err := migration2.ReadDir(migrationCfg.Dir, set)
 				if err != nil {
 					log.Fatal().Err(err).Msg("failed to read directory with migrations")
 					return err

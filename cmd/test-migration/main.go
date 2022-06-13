@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	migration2 "github.com/webdevelop-pro/migration-service/internal/domain/migration"
 
 	"github.com/pkg/errors"
 
@@ -15,7 +16,7 @@ func main() {
 	defer pg.Close()
 	cfg := migration.GetConfig()
 	set := migration.NewSet(pg)
-	err := migration.ReadDir(cfg.Dir, set)
+	err := migration2.ReadDir(cfg.Dir, set)
 	if err != nil {
 		panic(errors.Wrap(err, "failed to read directory with migrations"))
 	}
