@@ -1,55 +1,69 @@
 package app
 
 import (
-	"net/http"
+	"context"
+	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/logger"
-	"github.com/webdevelop-pro/migration-service/internal/api"
-	"github.com/webdevelop-pro/migration-service/pkg/migration"
+	"github.com/webdevelop-pro/migration-service/internal/adapters"
+	"github.com/webdevelop-pro/migration-service/internal/domain/migration"
 )
 
-type Config struct {
-	Host string `required:"true"`
-	Port string `required:"true"`
-}
-
-const PkgName = "app"
+const pkgName = "app"
 
 type App struct {
-	log logger.Logger
-	set *migration.Set
-	cfg *Config
+	log  logger.Logger
+	repo adapters.Repository
+	set  *migration.Set
+	cfg  *Config
 }
 
-func New(log logger.Logger, cfg *Config, set *migration.Set) *App {
+func New(c *configurator.Configurator, repo adapters.Repository) *App {
+	cfg := c.New(pkgName, &Config{}, pkgName).(*Config)
+
 	return &App{
-		log: log,
-		set: set,
-		cfg: cfg,
+		log:  logger.NewDefaultComponent(pkgName),
+		repo: repo,
+		cfg:  cfg,
+		set:  migration.New(cfg.Dir, repo),
 	}
 }
 
-// GetConfig return config from envs
-func GetConfig() *Config {
-	cfg := &Config{}
-
-	if err := configurator.NewConfiguration(cfg, PkgName); err != nil {
-		log := logger.NewDefaultComponent(PkgName)
-		log.Fatal().Err(err).Msgf("failed to get configuration of %s", PkgName)
+func (a *App) ApplyAll() {
+	n, err := a.set.ApplyAll(a.cfg.ForceApply)
+	if err != nil {
+		a.log.Fatal().Err(err).Msg("failed to apply all migrations")
 	}
 
-	return cfg
+	a.log.Info().Int("n", n).Msg("applied migrations")
 }
 
-func (app *App) StartServer() {
-	svc := api.NewAPI(app.log.With().Str("module", "api").Logger(), app.set)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/apply", svc.HandleApplyMigrations)
-	mux.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	if err := http.ListenAndServe(app.cfg.Host+":"+app.cfg.Port, mux); err != nil {
-		app.log.Fatal().Err(err).Msg("failed to start REST API listener")
+func (a *App) Apply(ctx context.Context, serviceName string) (int, error) {
+	if serviceName == "" || !a.set.ServiceExists(serviceName) {
+		return 0, fmt.Errorf("service '%s' not found", serviceName)
 	}
+
+	ver, err := a.repo.GetServiceVersion(ctx, serviceName)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get current service version")
+	}
+
+	n, lastVersion, err := a.set.Apply(serviceName, -1, ver, false, true)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to apply migrations")
+	}
+
+	if lastVersion > ver {
+		if err := a.repo.UpdateServiceVersion(ctx, serviceName, lastVersion); err != nil {
+			a.log.Error().Err(err).Msg("failed to bump service version")
+		}
+	}
+
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to encode response")
+	}
+
+	return n, nil
 }

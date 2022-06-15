@@ -2,80 +2,75 @@ package main
 
 import (
 	"context"
-	"os"
-	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/webdevelop-pro/go-common/db"
+	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/logger"
+	"github.com/webdevelop-pro/go-common/server"
+	"github.com/webdevelop-pro/migration-service/internal/adapters"
+	"github.com/webdevelop-pro/migration-service/internal/adapters/repository/postgres"
 	"github.com/webdevelop-pro/migration-service/internal/app"
-	"github.com/webdevelop-pro/migration-service/pkg/migration"
+	"github.com/webdevelop-pro/migration-service/internal/ports/http"
+	"github.com/webdevelop-pro/migration-service/internal/services"
 	"go.uber.org/fx"
 )
 
 // @schemes https
 func main() {
-	fx.New(
+	log := logger.NewDefault()
+
+	a := fx.New(
 		fx.Logger(logger.NewDefaultComponent("fx")),
 		fx.Provide(
 			// Default logger
 			logger.NewDefault,
+			// Configurator
+			configurator.New,
 			// Database connection
-			db.GetConfig,
-			db.NewPool,
-			// Repository
-			migration.GetConfig,
-			migration.NewSet,
+			postgres.New,
+			// Bind DB with Repository interface
+			func(repo *postgres.Repository) adapters.Repository { return repo },
+			// app
+			app.New,
+			// Bind App with service interface
+			func(mig *app.App) services.Migration { return mig },
+			// Http Server
+			server.New,
 		),
 
 		fx.Invoke(
+			http.InitHandlers,
 			// Run HTTP server
-			registerHooks,
+			RunHttpServer,
+			// Run migrations
+			RunMigrations,
 		),
-	).Run()
+	)
+
+	if err := a.Start(context.Background()); err != nil {
+		log.Fatal().Err(err).Msg("failed")
+	}
+
+	a.Done()
+
+	log.Info().Msg("done")
 }
 
-func registerHooks(
-	lifecycle fx.Lifecycle, log logger.Logger, dbConfig *db.Config,
-	dbPool *pgxpool.Pool, migrationCfg *migration.Config, set *migration.Set,
-) {
-	lifecycle.Append(
-		fx.Hook{
-			OnStart: func(context.Context) error {
-				err := migration.ReadDir(migrationCfg.Dir, set)
-				if err != nil {
-					log.Fatal().Err(err).Msg("failed to read directory with migrations")
-					return err
-				}
-				log.Info().Msgf("started on: %s", time.Now().String())
+func RunHttpServer(c *configurator.Configurator, lc fx.Lifecycle, srv *server.HttpServer) {
+	cfg := c.New("main", &Config{}, "main").(*Config)
 
-				n, err := set.ApplyAll(migrationCfg.ForceApply)
-				if err != nil {
-					log.Fatal().Err(err).Msg("failed to apply all migrations")
-					return err
-				}
-				log.Info().Int("n", n).Msg("applied migrations")
+	if !cfg.ApplyOnly {
+		return
+	}
 
-				if migrationCfg.ApplyOnly {
-					// clean up here
-					dbPool.Close()
-					os.Exit(3)
-					return nil
-				}
+	server.StartServer(lc, srv)
+}
 
-				appCfg := app.GetConfig()
-				myApp := app.New(
-					logger.NewDefaultComponent("app"),
-					appCfg,
-					set,
-				)
-				myApp.StartServer()
-				return nil
-			},
-			OnStop: func(context.Context) error {
-				dbPool.Close()
-				return nil
-			},
-		},
-	)
+func RunMigrations(sd fx.Shutdowner, app *app.App, c *configurator.Configurator) {
+	cfg := c.New("main", &Config{}, "main").(*Config)
+
+	app.ApplyAll()
+
+	if cfg.ApplyOnly {
+		sd.Shutdown()
+	}
 }
