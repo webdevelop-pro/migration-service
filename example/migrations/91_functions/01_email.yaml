@@ -1,0 +1,24 @@
+service: email_triggers
+migrations:
+- version: 1
+  queries:
+  - |
+    CREATE OR REPLACE FUNCTION send_email() RETURNS TRIGGER AS $$
+    DECLARE
+      notification json;
+      BEGIN
+        notification = json_build_object(
+          'id', new.id,
+          'action', 'send',
+          'recipient', new.recipient,
+          'sender', new.sender,
+          'subject', new.subject,
+          'template', new.template
+        );
+        PERFORM pg_notify('email_events', notification::text);
+        RETURN NEW;
+      END;
+    $$ LANGUAGE plpgsql;
+    DROP TRIGGER IF EXISTS email_trigger ON public.email_emails;
+    CREATE TRIGGER email_trigger AFTER INSERT ON public.email_emails
+      FOR EACH ROW EXECUTE PROCEDURE send_email();

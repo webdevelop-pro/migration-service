@@ -1,0 +1,22 @@
+service: email
+migrations:
+- version: 1
+  queries:
+  - |
+    CREATE TABLE IF NOT EXISTS public.email_emails (
+      id              serial PRIMARY KEY NOT NULL,
+
+      -- required
+      recipient       character varying(120) NOT NULL,
+      sender          character varying(120) NOT NULL,
+      subject         character varying(255) NOT NULL,
+      template        character varying(255) NOT NULL, -- fixme enums?
+
+      -- optional
+      is_sent         boolean NOT NULL default false,
+      is_canceled     boolean NOT NULL default true,
+
+      -- dates
+      created_at      timestamp with time zone DEFAULT now() NOT NULL,
+      sent_at         timestamp with time zone NULL DEFAULT 'infinity'::timestamp
+    );
