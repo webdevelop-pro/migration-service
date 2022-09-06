@@ -1,22 +1,49 @@
-service: email
+service: email-worker
 migrations:
 - version: 1
   queries:
   - |
-    CREATE TABLE IF NOT EXISTS public.email_emails (
-      id              serial PRIMARY KEY NOT NULL,
+    DROP TYPE email_status_t CASCADE;
+    CREATE TYPE email_status_t AS enum('new', 'in_process', 'sent', 'cancelled', 'error');
+
+    DROP TABLE IF EXISTS email_emails CASCADE;
+    CREATE TABLE IF NOT EXISTS email_emails (
+      id serial PRIMARY KEY,
+
+      -- references
+      user_id character varying(32) NOT NULL DEFAULT '', -- change to foreign key in real project
+      -- FOREIGN KEY (user_id) REFERENCES public.user_users ("id") ON DELETE CASCADE,
+      transaction_id character varying(120) NOT NULL DEFAULT '', -- 3rd party transaction id
 
       -- required
-      recipient       character varying(120) NOT NULL,
-      sender          character varying(120) NOT NULL,
-      subject         character varying(255) NOT NULL,
-      template        character varying(255) NOT NULL, -- fixme enums?
+      recipient_email character varying(120) NOT NULL,
+      recipient_name character varying(120) NOT NULL,
+      sender_email character varying(120) NOT NULL,
+      sender_name character varying(120) NOT NULL,
+      subject character varying(255) NOT NULL,
+      template character varying(255) NOT NULL,
 
       -- optional
-      is_sent         boolean NOT NULL default false,
-      is_canceled     boolean NOT NULL default true,
+      status email_status_t NOT NULL default 'new',
+      data jsonb NOT NULL default '{}',
+      sent_attemp_count int not null default 0,
+      content_html text default '' not null,
+
+      -- email meta information and send log
+      meta_data jsonb  NOT NULL default '{}'::jsonb,
+      recipient_location jsonb  NOT NULL default '{}'::jsonb,
+      log jsonb NOT NULL default '{}',
 
       -- dates
-      created_at      timestamp with time zone DEFAULT now() NOT NULL,
-      sent_at         timestamp with time zone NULL DEFAULT 'infinity'::timestamp
+      created_at timestamp with time zone NOT NULL DEFAULT NOW(),
+      updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+      sent_attemp_at timestamp with time zone NOT NULL DEFAULT '1970-01-01'
     );
+
+    -- CREATE UNIQUE INDEX email_emails_user_id_uindex
+    --          on email_emails (user_id);
+
+    CREATE INDEX email_emails_transaction_id_index
+              on email_emails (transaction_id);
+
+
