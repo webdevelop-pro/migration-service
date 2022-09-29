@@ -18,9 +18,7 @@ docker_run() {
 
 
 build() {
-  wget https://github.com/webdevelop-pro/migration-service/archive/refs/tags/0.2.tar.gz
-  tar xzf 0.2.tar.gz
-  rm -rf 0.2.tar.gz
+  curl https://github.com/webdevelop-pro/migration-service/releases/download/v0.3/app-v0.3-Darwin-arm64.tar.gz | tar xz > app
   chmod +x app
 }
 
