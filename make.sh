@@ -103,10 +103,6 @@ docker-run)
   docker_run
   ;;
 
-gcloud-deploy)
-  gcloud builds submit --tag gcr.io/${COMPANY}/${SERVICE}:dev
-  ;;
-
 *)
   echo "unknown"
   ;;
