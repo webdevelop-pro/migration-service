@@ -1,8 +1,0 @@
-service: migration
-migrations:
-- version: 1
-  allowError: false
-  queries:
-  - |
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';

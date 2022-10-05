@@ -2,10 +2,12 @@ package migration
 
 import (
 	"context"
-	"github.com/webdevelop-pro/go-common/logger"
-	"github.com/webdevelop-pro/migration-service/internal/adapters"
+	"fmt"
 	"sort"
 	"sync"
+
+	"github.com/webdevelop-pro/go-common/logger"
+	"github.com/webdevelop-pro/migration-service/internal/adapters"
 
 	"github.com/pkg/errors"
 )
@@ -63,13 +65,14 @@ func (s *Set) Add(service string, priority, version int, mig Migration) {
 		serviceMigrations = make(map[int][]Migration)
 	}
 
+	// ToDo
+	// Return error if version is already taken, no version duplications
 	versionMigrations, exists := serviceMigrations[version]
 	if !exists {
 		versionMigrations = make([]Migration, 0)
 	}
 
 	versionMigrations = append(versionMigrations, mig)
-
 	serviceMigrations[version] = versionMigrations
 	priorityService[service] = serviceMigrations
 	s.data[priority] = priorityService
@@ -216,21 +219,24 @@ func (s *Set) ApplyAll(force bool) (int, error) {
 	var n int
 	lastVersions := make(map[string]int)
 
-	for _, priority := range s.priorities() {
-		for _, service := range s.services(priority) {
+	pariorities := s.priorities()
+	for _, priority := range pariorities {
+		services := s.services(priority)
+		for _, service := range services {
 			ver, err := s.repo.GetServiceVersion(context.Background(), service)
 
 			if err != nil && priority > 0 && service != "migration" {
-				return n, errors.Wrapf(err, "failed to get service version for %s", service)
+				s.log.Error().Err(err).Msgf("failed to get service version for %s", service)
+				return n, fmt.Errorf("failed to get service version for %s", service)
 			}
 
 			num, lastVersion, err := s.Apply(service, priority, ver, force, false)
 			if err != nil {
-				return n, errors.Wrapf(err, "failed to apply migrations for %s", service)
+				s.log.Error().Err(err).Msgf("failed to apply migrations for %s", service)
+				return n, fmt.Errorf("failed to apply migrations for %s", service)
 			}
 
 			n += num
-
 			if lastVersion > ver {
 				if curLastVersion, ok := lastVersions[service]; !ok || lastVersion > curLastVersion {
 					lastVersions[service] = lastVersion
@@ -243,7 +249,8 @@ func (s *Set) ApplyAll(force bool) (int, error) {
 		if ver > 0 {
 			err := s.repo.UpdateServiceVersion(context.Background(), service, ver)
 			if err != nil {
-				return n, errors.Wrapf(err, "failed to bump service version (%s)", service)
+				s.log.Error().Err(err).Msgf("failed to bump service version (%s)", service)
+				return n, fmt.Errorf("failed to bump service version (%s)", service)
 			}
 		}
 	}

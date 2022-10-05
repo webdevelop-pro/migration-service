@@ -22,13 +22,12 @@ func New(c *configurator.Configurator) *Repository {
 
 // UpdateServiceVersion updates service version.
 func (r *Repository) UpdateServiceVersion(ctx context.Context, name string, ver int) error {
-	const query = `INSERT INTO migration_service (name, version) VALUES ($1, $2) ON CONFLICT(name) DO UPDATE SET version=$2`
+	const query = `INSERT INTO migration_service (name, version) VALUES ($1, $2)`
 	_, err := r.db.Exec(ctx, query, name, ver)
 
 	if err != nil {
-		return errors.Wrap(err, "query failed")
+		return errors.Wrapf(err, "query %s failed, params: %s %d", query, name, ver)
 	}
-
 	return nil
 }
 
@@ -44,7 +43,7 @@ func (r *Repository) GetServiceVersion(ctx context.Context, name string) (int, e
 			return 0, nil
 		}
 
-		return 0, errors.Wrap(err, "query failed")
+		return 0, errors.Wrapf(err, "query %s failed, %s ", query, name)
 	}
 
 	return ver, nil
@@ -60,4 +59,22 @@ func (r *Repository) Exec(ctx context.Context, sql string, arguments ...interfac
 			return err
 		},
 	)
+}
+
+// UpdateServiceVersion updates service version.
+func (r *Repository) CreateMigrationTable(ctx context.Context) error {
+	const query = `CREATE TABLE migration_service (
+		id serial NOT NULL PRIMARY KEY,
+		name varchar NOT NULL UNIQUE,
+		version int NOT NULL DEFAULT 0,
+		created_at timestamp with time zone DEFAULT now() NOT NULL,
+		UNIQUE (name, version)
+	);`
+	_, err := r.db.Exec(ctx, query)
+
+	if err != nil {
+		return errors.Wrapf(err, "query %s failed.", query)
+	}
+
+	return nil
 }

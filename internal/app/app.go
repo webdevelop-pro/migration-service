@@ -11,7 +11,7 @@ import (
 	"github.com/webdevelop-pro/migration-service/internal/domain/migration"
 )
 
-const pkgName = "app"
+const pkgName = "migration"
 
 type App struct {
 	log  logger.Logger
@@ -31,13 +31,17 @@ func New(c *configurator.Configurator, repo adapters.Repository) *App {
 	}
 }
 
-func (a *App) ApplyAll() {
+func (a *App) ApplyAll() error {
 	n, err := a.set.ApplyAll(a.cfg.ForceApply)
 	if err != nil {
-		a.log.Fatal().Err(err).Msg("failed to apply all migrations")
+		if err.Error() == "failed to get service version for migration_seed: query failed: ERROR: relation \"migration_service\" does not exist (SQLSTATE 42P01)" {
+			a.log.Fatal().Msg("\n\nCreate migration_service table first. Details are in readme file\n\n")
+		}
+		a.log.Error().Err(err).Msg("failed to apply all migrations")
+		return err
 	}
-
 	a.log.Info().Int("n", n).Msg("applied migrations")
+	return nil
 }
 
 func (a *App) Apply(ctx context.Context, serviceName string) (int, error) {

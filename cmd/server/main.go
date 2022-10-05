@@ -68,7 +68,10 @@ func RunHttpServer(c *configurator.Configurator, lc fx.Lifecycle, srv *server.Ht
 func RunMigrations(sd fx.Shutdowner, app *app.App, c *configurator.Configurator) {
 	cfg := c.New("main", &Config{}, "main").(*Config)
 
-	app.ApplyAll()
+	if err := app.ApplyAll(); err != nil {
+		log := logger.NewDefault()
+		log.Error().Err(err).Msg("error during migrations")
+	}
 
 	if cfg.ApplyOnly {
 		sd.Shutdown()
