@@ -5,13 +5,27 @@ All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
 In order to work properly migration service require `migration_service` table to be created first
 ```sql
- CREATE TABLE migration_service (
-      id SERIAL NOT NULL PRIMARY KEY,
-      name varchar NOT NULL UNIQUE,
-      version int NOT NULL DEFAULT 0,
-      created_at timestamp with time zone DEFAULT now() NOT NULL,
-      UNIQUE (name, version)
-  );
+CREATE TABLE migration_service (
+	id serial NOT NULL PRIMARY KEY,
+	name varchar NOT NULL UNIQUE,
+	version int NOT NULL DEFAULT 0,
+	created_at timestamp with time zone DEFAULT now() NOT NULL,
+	updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
+	UNIQUE (name, version)
+);
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_timestamp_email_emails
+  BEFORE UPDATE ON migration_service
+  FOR EACH ROW
+  EXECUTE PROCEDURE trigger_set_timestamp();
+COMMIT;
 ```
 or execute `repositary.CreateMigrationTable` function
 
