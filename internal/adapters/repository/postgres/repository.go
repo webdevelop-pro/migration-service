@@ -3,11 +3,14 @@ package postgres
 import (
 	"context"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/db"
 )
+
+const NO_TABLE_CODE = "42P01"
 
 type Repository struct {
 	db *db.DB
@@ -35,6 +38,7 @@ func (r *Repository) UpdateServiceVersion(ctx context.Context, name string, ver 
 func (r *Repository) GetServiceVersion(ctx context.Context, name string) (int, error) {
 	const query = `SELECT version FROM migration_service WHERE name=$1`
 
+	var pgErr *pgconn.PgError
 	var ver int
 
 	err := r.db.QueryRow(ctx, query, name).Scan(&ver)
@@ -42,7 +46,15 @@ func (r *Repository) GetServiceVersion(ctx context.Context, name string) (int, e
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil
 		}
-
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == NO_TABLE_CODE {
+				if err := r.CreateMigrationTable(context.Background()); err != nil {
+					return 0, errors.Wrapf(err, "query %s failed, %s ", query, pgErr.Message)
+				}
+				return r.GetServiceVersion(ctx, name)
+			}
+			return 0, errors.Wrapf(err, "query %s failed, %s ", query, pgErr.Message)
+		}
 		return 0, errors.Wrapf(err, "query %s failed, %s ", query, name)
 	}
 
@@ -61,7 +73,7 @@ func (r *Repository) Exec(ctx context.Context, sql string, arguments ...interfac
 	)
 }
 
-// UpdateServiceVersion updates service version.
+// CreateMigrationTable will create a migration table
 func (r *Repository) CreateMigrationTable(ctx context.Context) error {
 	const query = `CREATE TABLE migration_service (
 		id serial NOT NULL PRIMARY KEY,

@@ -53,14 +53,22 @@ func ReadDir(dir string, set *Set) error {
 		serviceName := ""
 		migrationPriority := 0
 
+		/*
+			./migratios/servce/<sql_index>_file.sql
+			are looking for sql index ^
+		*/
 		if parts := strings.Split(f.Name(), "_"); len(parts) > 1 {
 			if p, err := strconv.Atoi(parts[0]); err == nil {
 				migrationPriority = p
 			}
 		}
 
+		/*
+			./migratios/<service_index>_<service_name/file.sql
+			are looking for those  ^            ^
+		*/
 		if folders := strings.Split(dir, "/"); len(folders) > 1 {
-			if parts := strings.Split(folders[len(folders)-1], "_"); len(parts) > 1 {
+			if parts := strings.Split(folders[1], "_"); len(parts) > 1 {
 				if p, err := strconv.Atoi(parts[0]); err == nil {
 					servicePriority = p
 				}
