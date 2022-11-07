@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 PKG_LIST=`go list ./... | grep -v /vendor/`
 GO_FILES=`find . -name '*.go' | grep -v _test.go`
-WORK_DIR=`pwd`
+WORK_DIR=$(pwd)
 COMPANY=webdevelop-pro
 SERVICE=migration-service
 
@@ -32,7 +32,11 @@ install)
   go install golang.org/x/lint/golint
   go install github.com/lanre-ade/godoc2md
   go install github.com/securego/gosec/cmd/gosec
-  cp etc/pre-commit .git/hooks/pre-commit
+  if [ -d ".git" -a -d ".git/hooks" ]
+  then
+    rm .git/hooks/pre-commit 2>/dev/null;
+    ln -s etc/pre-commit .git/hooks/pre-commit
+  fi
   ;;
 
 lint)
@@ -66,7 +70,7 @@ run)
   ./app
   ;;
 
-gosec)
+audit)
   echo "running gosec"
   gosec ./...
   ;;
@@ -97,10 +101,6 @@ docker-build)
 
 docker-run)
   docker_run
-  ;;
-
-gcloud-deploy)
-  gcloud builds submit --tag gcr.io/${COMPANY}/${SERVICE}:dev
   ;;
 
 *)

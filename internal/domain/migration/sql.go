@@ -2,13 +2,11 @@ package migration
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 // yamlMigration is a Migration representation in yaml.
@@ -39,6 +37,7 @@ func ReadDir(dir string, set *Set) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to read directory")
 	}
+
 	for _, f := range files {
 		if f.IsDir() {
 			if err := ReadDir(filepath.Join(dir, f.Name()), set); err != nil {
@@ -46,31 +45,52 @@ func ReadDir(dir string, set *Set) error {
 			}
 			continue
 		}
-		if filepath.Ext(f.Name()) != ".yml" && filepath.Ext(f.Name()) != ".yaml" {
+
+		if filepath.Ext(f.Name()) != ".sql" {
 			continue
 		}
-		priority := 1
+		servicePriority := 1
+		serviceName := ""
+		migrationPriority := 0
+
+		/*
+			./migratios/servce/<sql_index>_file.sql
+			are looking for sql index ^
+		*/
 		if parts := strings.Split(f.Name(), "_"); len(parts) > 1 {
 			if p, err := strconv.Atoi(parts[0]); err == nil {
-				priority = p
+				migrationPriority = p
 			}
 		}
+
+		/*
+			./migratios/<service_index>_<service_name/file.sql
+			are looking for those  ^            ^
+		*/
+		if folders := strings.Split(dir, "/"); len(folders) > 1 {
+			if parts := strings.Split(folders[1], "_"); len(parts) > 1 {
+				if p, err := strconv.Atoi(parts[0]); err == nil {
+					servicePriority = p
+				}
+				serviceName = parts[1]
+			}
+		}
+
 		fullPath := filepath.Join(dir, f.Name())
+
 		/* #nosec */
-		file, err := os.Open(fullPath)
+		file, err := ioutil.ReadFile(fullPath)
 		if err != nil {
 			return errors.Wrapf(err, "failed to open file %s", fullPath)
 		}
-		var serviceSet yamlServiceSet
-		err = yaml.NewDecoder(file).Decode(&serviceSet)
-		if err != nil {
-			_ = file.Close()
-			return errors.Wrapf(err, "failed to decode migrations from file %s", fullPath)
+
+		m := Migration{
+			AllowError: false, // ToDo, move to comment
+			NoAuto:     false, // ToDo, mnove to comment
+			Queries:    []string{string(file)},
 		}
-		for _, m := range serviceSet.Migrations {
-			set.Add(serviceSet.ServiceName, priority, m.Version, m.ToMigration())
-		}
-		_ = file.Close()
+		set.Add(serviceName, servicePriority, migrationPriority, m)
 	}
+
 	return nil
 }

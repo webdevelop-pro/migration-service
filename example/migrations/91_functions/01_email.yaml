@@ -1,0 +1,48 @@
+service: email-worker_triggers
+migrations:
+- version: 1
+  queries:
+  - |
+    --- update updated_at automatically on every update operation
+    CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+    RETURNS TRIGGER AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    --- send email_event event with email information
+    CREATE OR REPLACE FUNCTION notify_new_email() RETURNS TRIGGER AS $$
+    DECLARE
+      notification json;
+      BEGIN
+        notification = json_build_object(
+          'id', new.id,
+          'action', 'send',
+          'recipient_email', new.recipient_email,
+          'recipient_name', new.recipient_name,
+          'sender_email', new.sender_email,
+          'sender_name', new.sender_name,
+          'subject', new.subject,
+          'template', new.template,
+          'data', new.data,
+          'meta_data', new.meta_data
+        );
+        PERFORM pg_notify('email_event', notification::text);
+        RETURN NEW;
+      END;
+    $$ LANGUAGE plpgsql;
+
+    --- automatically update update_at field
+    DROP TRIGGER IF EXISTS set_timestamp_email_emails ON email_emails;
+    CREATE TRIGGER set_timestamp_email_emails
+      BEFORE UPDATE ON email_emails
+      FOR EACH ROW
+      EXECUTE PROCEDURE trigger_set_timestamp();
+    COMMIT;
+
+    --- send email on insert event
+    DROP TRIGGER IF EXISTS email_trigger ON email_emails;
+    CREATE TRIGGER email_trigger AFTER INSERT ON email_emails
+      FOR EACH ROW EXECUTE PROCEDURE notify_new_email();

@@ -9,7 +9,7 @@
 *.dll
 *.so
 *.dylib
-app
+example/app
 
 # Test binary, built with `go test -c`
 *.test
@@ -123,3 +123,5 @@ modules.xml
 .env
 .env.dev
 *.dump
+
+go.work
