@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/webdevelop-pro/go-common/configurator"
 	"gopkg.in/yaml.v2"
 )
 
@@ -35,12 +36,18 @@ func Migrate(inputDir string, outputDir string) error {
 
 	for _, f := range files {
 		if f.IsDir() {
+			newPath := fmt.Sprintf("%s/%s", outputDir, f.Name())
+			err := os.Mkdir(newPath, 0755)
+			if err != nil && err.Error() != fmt.Sprintf("mkdir %s: file exists", newPath) {
+				return err
+			}
 			if err := Migrate(
 				filepath.Join(inputDir, f.Name()),
 				filepath.Join(outputDir, f.Name()),
 			); err != nil {
 				return err
 			}
+
 			continue
 		}
 
@@ -75,7 +82,7 @@ func Migrate(inputDir string, outputDir string) error {
 		for _, m := range serviceSet.Migrations {
 			newPath := fmt.Sprintf("%s/%s_%s", outputDir, priority, serviceSet.ServiceName)
 			err := os.Mkdir(newPath, 0755)
-			if err != nil {
+			if err != nil && err.Error() != fmt.Sprintf("mkdir %s: file exists", newPath) {
 				log.Fatal(err)
 			}
 			os.WriteFile(
@@ -93,5 +100,10 @@ func Migrate(inputDir string, outputDir string) error {
 }
 
 func main() {
-	Migrate("./migrations", "./sql_migrations")
+	config := configurator.New()
+	cfg := config.New(pkgName, &Config{}, pkgName).(*Config)
+	fmt.Println(cfg)
+	if err := Migrate(cfg.Yaml, cfg.Sql); err != nil {
+		panic(err)
+	}
 }
