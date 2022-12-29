@@ -173,7 +173,11 @@ func TestMigrationPriorities(t *testing.T) {
 
 	initSqls := []sqlFiles{
 		{
-			"./migrations/01_user/01_init.sql",
+			"./migrations/01_user_user/04_add_bitint.sql",
+			`ALTER TABLE user_users ADD COLUMN external_id bigint default 0;`,
+		},
+		{
+			"./migrations/01_user_user/01_init.sql",
 			`--- some comment
 CREATE TABLE user_users (
     id serial not null primary key,
@@ -181,11 +185,15 @@ CREATE TABLE user_users (
 );`,
 		},
 		{
-			"./migrations/01_user/04_add_bitint.sql",
-			`ALTER TABLE user_users ADD COLUMN external_id bigint default 0;`,
+			"./migrations/02_email_emails/02_add_id.sql",
+			`ALTER TABLE email_emails ADD COLUMN external_id bigint default 0;`,
 		},
 		{
-			"./migrations/01_user/02_add_email.sql",
+			"./migrations/02_email_emails/01_create.sql",
+			`CREATE TABLE email_emails (id serial not null primary key);`,
+		},
+		{
+			"./migrations/01_user_user/02_add_email.sql",
 			`--- some comment
 	ALTER TABLE user_users ADD email varchar(150) not null default '' UNIQUE;`,
 		},
@@ -205,5 +213,5 @@ CREATE TABLE user_users (
 		log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
 
-	checkResults(t, rawPG, log, "user", 4)
+	checkResults(t, rawPG, log, "email_emails", 2)
 }

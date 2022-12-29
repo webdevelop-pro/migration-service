@@ -10,8 +10,7 @@ CREATE TABLE migration_service (
 	name varchar NOT NULL UNIQUE,
 	version int NOT NULL DEFAULT 0,
 	created_at timestamp with time zone DEFAULT now() NOT NULL,
-	updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
-	UNIQUE (name, version)
+	updated_at timestamp with time zone NOT NULL DEFAULT NOW()
 );
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
