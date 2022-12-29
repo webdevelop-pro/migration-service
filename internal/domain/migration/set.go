@@ -202,7 +202,7 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
 
-				s.log.Info().Msgf("executed query for %s, version: %d", name, ver)
+				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d", query, name, ver)
 			}
 
 			lastVersion = ver

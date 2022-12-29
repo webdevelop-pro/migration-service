@@ -80,8 +80,7 @@ func (r *Repository) CreateMigrationTable(ctx context.Context) error {
 	name varchar NOT NULL UNIQUE,
 	version int NOT NULL DEFAULT 0,
 	created_at timestamp with time zone DEFAULT now() NOT NULL,
-	updated_at timestamp with time zone NOT NULL DEFAULT NOW(),
-	UNIQUE (name, version)
+	updated_at timestamp with time zone NOT NULL DEFAULT NOW()
 );
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
@@ -91,7 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER set_timestamp_email_emails
+CREATE TRIGGER set_timestamp_migration_service
   BEFORE UPDATE ON migration_service
   FOR EACH ROW
   EXECUTE PROCEDURE trigger_set_timestamp();
