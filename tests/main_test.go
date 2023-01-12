@@ -162,6 +162,30 @@ CREATE TABLE user_users (
 	checkResults(t, rawPG, log, "email", 1)
 }
 
+func TestAllowError(t *testing.T) {
+	// we will create new migration for email service
+	// and verify if migration will be applied in correct order
+	// first user and then migration
+	log, _, _, migration, rawPG, _ := testInit()
+
+	// Create two different services with different indexes
+	// make sure migration executed in correct order
+	initSqls := []sqlFiles{
+		{
+			"./migrations/03_error_errors/01_test-allow-error.sql",
+			`--- allow_error: true
+	THIS IS SQL WITH AN ERROR`,
+		},
+	}
+	setUp(log, initSqls)
+
+	if err := migration.ApplyAll(); err != nil {
+		log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+
+	checkResults(t, rawPG, log, "error_errors", 1)
+}
+
 // TestMigrationPriorities checks if files executed in correct order
 func TestMigrationPriorities(t *testing.T) {
 	// we will create new migration for email service

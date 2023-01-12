@@ -39,7 +39,7 @@ Every file represented by `.sql` standard which parameters in the first comment.
 
 __Example__:
 ```sql
---- allowError: false 
+--- allow_error: false 
 CREATE TABLE user_users(id serial primary key);
 CREATE TABLE migration_service (
   id serial NOT NULL PRIMARY KEY,

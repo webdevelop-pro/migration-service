@@ -16,8 +16,8 @@ import (
 // yamlMigration is a Migration representation in yaml.
 type yamlMigration struct {
 	Version    int      `yaml:"version"`
-	AllowError bool     `yaml:"allowError"`
-	NoAuto     bool     `yaml:"noAuto"`
+	AllowError bool     `yaml:"allow_error"`
+	NoAuto     bool     `yaml:"no_auto"`
 	Queries    []string `yaml:"queries"`
 }
 

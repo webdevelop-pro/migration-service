@@ -84,11 +84,7 @@ func ReadDir(dir string, set *Set) error {
 			return errors.Wrapf(err, "failed to open file %s", fullPath)
 		}
 
-		m := Migration{
-			AllowError: false, // ToDo, move to comment
-			NoAuto:     false, // ToDo, mnove to comment
-			Queries:    []string{string(file)},
-		}
+		m := NewMigration([]string{string(file)})
 		set.Add(serviceName, servicePriority, migrationPriority, m)
 	}
 

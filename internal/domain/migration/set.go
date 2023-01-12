@@ -167,7 +167,7 @@ func (s *Set) serviceMigrations(name string, priority, minVersion int) map[int][
 }
 
 // Apply applies migrations for specified service with version > minVersion.
-func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly bool) (int, int, error) {
+func (s *Set) Apply(name string, priority, minVersion int) (int, int, error) {
 	migrations := s.serviceMigrations(name, priority, minVersion)
 
 	var n, lastVersion int
@@ -188,12 +188,11 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 
 	for _, ver := range versions {
 		for _, mig := range migrations[ver] {
-			if !isForced && mig.NoAuto && !noAutoOnly {
-				continue
-			}
-			if !mig.NoAuto && noAutoOnly {
-				continue
-			}
+			/*
+				if mig.NoAuto {
+					continue
+				}
+			*/
 
 			for _, query := range mig.Queries {
 				err := s.repo.Exec(context.Background(), query)
@@ -215,7 +214,7 @@ func (s *Set) Apply(name string, priority, minVersion int, isForced, noAutoOnly 
 }
 
 // ApplyAll applies all migrations for all services.
-func (s *Set) ApplyAll(force bool) (int, error) {
+func (s *Set) ApplyAll() (int, error) {
 	var n int
 	lastVersions := make(map[string]int)
 
@@ -230,7 +229,7 @@ func (s *Set) ApplyAll(force bool) (int, error) {
 				return n, fmt.Errorf("failed to get service version for %s", service)
 			}
 
-			num, lastVersion, err := s.Apply(service, priority, ver, force, false)
+			num, lastVersion, err := s.Apply(service, priority, ver)
 			if err != nil {
 				s.log.Error().Err(err).Msgf("failed to apply migrations for %s", service)
 				return n, fmt.Errorf("failed to apply migrations for %s", service)
