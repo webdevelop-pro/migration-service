@@ -1,5 +1,6 @@
 # Database migration service
 
+
 ## Structure
 All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
