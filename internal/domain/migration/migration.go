@@ -18,15 +18,24 @@ func NewMigration(queries []string) Migration {
 	}
 
 	lines := strings.Split(queries[0], "\n")
-	if len(lines[0]) > 15 && lines[0][0:3] == "---" {
-		comment := lines[0][3:len(lines[0])]
-		pairs := strings.Split(comment, ",")
-		for _, pair := range pairs {
-			pair = strings.Replace(pair, " ", "", -1)
-			vals := strings.Split(pair, ":")
-			if vals[0] == "allow_error" {
-				if vals[1] == "true" || vals[1] == "1" {
-					mig.AllowError = true
+	for _, line := range lines {
+		line = strings.Replace(line, "\t", "", -1)
+		// we don't have any comments at all
+		if len(line) < 2 || line[0:2] != "--" {
+			break
+		}
+		if len(line) > 15 && line[0:2] == "--" {
+			comment := line[2:]
+			comment = strings.Replace(comment, " ", "", -1)
+			comment = strings.Replace(comment, "-", "", -1)
+			pairs := strings.Split(comment, ",")
+			for _, pair := range pairs {
+				vals := strings.Split(pair, ":")
+				if vals[0] == "allow_error" {
+					if vals[1] == "true" || vals[1] == "1" {
+						mig.AllowError = true
+						break
+					}
 				}
 			}
 		}

@@ -201,11 +201,14 @@ func (s *Set) Apply(name string, priority, minVersion int) (int, int, error) {
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
 				}
 
+				if err := s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
+					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, err: %s", ver, query)
+				}
+
 				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d", query, name, ver)
 			}
 
 			lastVersion = ver
-
 			n++
 		}
 	}
@@ -240,16 +243,6 @@ func (s *Set) ApplyAll() (int, error) {
 				if curLastVersion, ok := lastVersions[service]; !ok || lastVersion > curLastVersion {
 					lastVersions[service] = lastVersion
 				}
-			}
-		}
-	}
-
-	for service, ver := range lastVersions {
-		if ver > 0 {
-			err := s.repo.UpdateServiceVersion(context.Background(), service, ver)
-			if err != nil {
-				s.log.Error().Err(err).Msgf("failed to bump service version (%s)", service)
-				return n, fmt.Errorf("failed to bump service version (%s)", service)
 			}
 		}
 	}

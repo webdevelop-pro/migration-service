@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/db"
 	"github.com/webdevelop-pro/go-common/logger"
 	"github.com/webdevelop-pro/migration-service/internal/adapters/repository/postgres"
 	"github.com/webdevelop-pro/migration-service/internal/app"
+	"github.com/webdevelop-pro/migration-service/internal/domain/migration"
 )
 
 type sqlFiles struct {
@@ -166,24 +168,16 @@ func TestAllowError(t *testing.T) {
 	// we will create new migration for email service
 	// and verify if migration will be applied in correct order
 	// first user and then migration
-	log, _, _, migration, rawPG, _ := testInit()
-
-	// Create two different services with different indexes
-	// make sure migration executed in correct order
-	initSqls := []sqlFiles{
-		{
-			"./migrations/03_error_errors/01_test-allow-error.sql",
-			`--- allow_error: true
+	mig := migration.NewMigration([]string{`--
+	-- --   allow_error: true  
+	--
 	THIS IS SQL WITH AN ERROR`,
-		},
-	}
-	setUp(log, initSqls)
+	})
 
-	if err := migration.ApplyAll(); err != nil {
-		log.Fatal().Err(err).Msg("cannot apply migrations")
+	if mig.AllowError != true {
+		log.Error().Msg("allow error should be true")
+		t.Fail()
 	}
-
-	checkResults(t, rawPG, log, "error_errors", 1)
 }
 
 // TestMigrationPriorities checks if files executed in correct order
@@ -238,4 +232,43 @@ CREATE TABLE user_users (
 	}
 
 	checkResults(t, rawPG, log, "email_emails", 2)
+}
+
+// TestMigrationApplied checks applied migrations commited to db
+func TestMigrationCommited(t *testing.T) {
+	// we will create new migration for email service
+	// and verify if migration will be applied in correct order
+	// first user and then migration
+	log, _, _, migration, rawPG, _ := testInit()
+
+	log.Debug().Msg("trying to apply migration")
+
+	initSqls := []sqlFiles{
+		{
+			"./migrations/01_user_users/01_add_bitint.sql",
+			`-- allow_error: true
+			ALTER TABLE user_users ADD COLUMN external_id bigint default 0;`,
+		},
+		{
+			"./migrations/01_user_users/02_init.sql",
+			`ERROR SQL`,
+		},
+	}
+	setUp(log, initSqls)
+
+	// ToDo
+	// check uniqueness of services numbers
+	/*
+		// broken file record, migration should not be applied since we have order duplication
+		if err := os.WriteFile("./migrations/01_user/03_add_bitint-for-second-time.sql", []byte(SQL), 0644); err != nil {
+			log.Fatal().Err(err).Msg("cannot create a file")
+		}
+	*/
+
+	if err := migration.ApplyAll(); err == nil {
+		log.Fatal().Msg("last migration should fail")
+		t.Fail()
+	}
+
+	checkResults(t, rawPG, log, "user_users", 1)
 }

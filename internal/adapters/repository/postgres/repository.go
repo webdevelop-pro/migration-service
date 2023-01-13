@@ -25,7 +25,7 @@ func New(c *configurator.Configurator) *Repository {
 
 // UpdateServiceVersion updates service version.
 func (r *Repository) UpdateServiceVersion(ctx context.Context, name string, ver int) error {
-	const query = `INSERT INTO migration_service (name, version) VALUES ($1, $2)`
+	const query = `INSERT INTO migration_service (name, version) VALUES ($1, $2) ON CONFLICT(name) DO UPDATE SET version=$2`
 	_, err := r.db.Exec(ctx, query, name, ver)
 
 	if err != nil {
