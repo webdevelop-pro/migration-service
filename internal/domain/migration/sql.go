@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -54,17 +55,24 @@ func ReadDir(dir string, set *Set) error {
 		migrationPriority := 0
 
 		/*
-			migratios/servce/<sql_index>_file.sql
+			migratios/servce/<sql_index>_filename.sql
 			are looking for sql index ^
 		*/
 		if parts := strings.Split(f.Name(), "_"); len(parts) > 1 {
 			if p, err := strconv.Atoi(parts[0]); err == nil {
 				migrationPriority = p
+			} else {
+				return errors.Wrapf(err, "cannot parse %s", f.Name())
 			}
+		} else {
+			return fmt.Errorf(
+				"file %s does not have correct format <sql_index>_filename.sql, dont know how to parse",
+				f.Name(),
+			)
 		}
 
 		/*
-			migratios/<service_index>_<service_name>/file.sql
+			migratios/<service_index>_<service_name>/<sql_index>_filename.sql
 			are looking for those  ^            ^
 		*/
 		if folders := strings.Split(dir, "/"); len(folders) > 1 {
@@ -73,6 +81,11 @@ func ReadDir(dir string, set *Set) error {
 					servicePriority = p
 				}
 				serviceName = folders[1][len(parts[0])+1 : len(folders[1])]
+			} else {
+				return fmt.Errorf(
+					"file %s does not have correct format <service_index>_<service_name>, dont know how to parse",
+					folders[1],
+				)
 			}
 		}
 
