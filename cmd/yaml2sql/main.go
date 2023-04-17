@@ -87,7 +87,7 @@ func Migrate(inputDir string, outputDir string) error {
 			}
 			os.WriteFile(
 				fmt.Sprintf("%s/%d_%s.sql", newPath, m.Version, "auto_generated"),
-				[]byte(strings.Join(m.Queries, " ")),
+				[]byte(strings.Join(m.Queries, "; ")),
 				0644,
 			)
 			// set.Add(serviceSet.ServiceName, priority, m.Version, m.ToMigration())
@@ -102,7 +102,6 @@ func Migrate(inputDir string, outputDir string) error {
 func main() {
 	config := configurator.New()
 	cfg := config.New(pkgName, &Config{}, pkgName).(*Config)
-	fmt.Println(cfg)
 	if err := Migrate(cfg.Yaml, cfg.Sql); err != nil {
 		panic(err)
 	}

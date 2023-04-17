@@ -8,13 +8,15 @@ import (
 type Migration struct {
 	AllowError bool
 	NoAuto     bool
+	Path       string
 	Queries    []string
 }
 
-func NewMigration(queries []string) Migration {
+func NewMigration(queries []string, path string) Migration {
 	mig := Migration{
 		AllowError: false,
 		Queries:    queries,
+		Path:       path,
 	}
 
 	lines := strings.Split(queries[0], "\n")

@@ -13,7 +13,7 @@ CREATE TABLE migration_service (
 	created_at timestamp with time zone DEFAULT now() NOT NULL,
 	updated_at timestamp with time zone NOT NULL DEFAULT NOW()
 );
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+CREATE OR REPLACE FUNCTION update_at_set_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -21,10 +21,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER set_timestamp_email_emails
+CREATE TRIGGER set_timestamp_migration_service
   BEFORE UPDATE ON migration_service
   FOR EACH ROW
-  EXECUTE PROCEDURE trigger_set_timestamp();
+  EXECUTE PROCEDURE update_at_set_timestamp();
 COMMIT;
 ```
 or execute `repositary.CreateMigrationTable` function
@@ -64,6 +64,4 @@ Once github PR reviewed and merged to one of those branches service will execute
 
 
 ## Env variables
-- FORCE_APPLY=true will apply all migration, even market as NoAuto
-- APPLY_ONLY=true will only apply transaction but will not start http server
-- MIGRATION_DIR=./migrations/  sql file location
+check `.example.env` file 

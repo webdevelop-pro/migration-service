@@ -82,7 +82,7 @@ func (r *Repository) CreateMigrationTable(ctx context.Context) error {
 	created_at timestamp with time zone DEFAULT now() NOT NULL,
 	updated_at timestamp with time zone NOT NULL DEFAULT NOW()
 );
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+CREATE OR REPLACE FUNCTION update_at_set_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -93,7 +93,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER set_timestamp_migration_service
   BEFORE UPDATE ON migration_service
   FOR EACH ROW
-  EXECUTE PROCEDURE trigger_set_timestamp();
+  EXECUTE PROCEDURE update_at_set_timestamp();
 COMMIT;
 `
 	_, err := r.db.Exec(ctx, query)

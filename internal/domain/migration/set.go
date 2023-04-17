@@ -26,6 +26,7 @@ func New(dir string, repo adapters.Repository) *Set {
 	err := ReadDir(dir, set)
 
 	if err != nil {
+		fmt.Println(err, dir, repo)
 		panic(err)
 	}
 
@@ -188,24 +189,19 @@ func (s *Set) Apply(name string, priority, minVersion int) (int, int, error) {
 
 	for _, ver := range versions {
 		for _, mig := range migrations[ver] {
-			/*
-				if mig.NoAuto {
-					continue
-				}
-			*/
 
 			for _, query := range mig.Queries {
 				err := s.repo.Exec(context.Background(), query)
 
 				if err != nil && !mig.AllowError {
-					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s", ver, query)
+					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, query, mig.Path)
 				}
 
 				if err := s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
-					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, err: %s", ver, query)
+					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
 				}
 
-				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d", query, name, ver)
+				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", query, name, ver, mig.Path)
 			}
 
 			lastVersion = ver

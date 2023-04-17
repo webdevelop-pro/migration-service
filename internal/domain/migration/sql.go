@@ -55,7 +55,7 @@ func ReadDir(dir string, set *Set) error {
 		migrationPriority := 0
 
 		/*
-			migratios/servce/<sql_index>_filename.sql
+			migratios/service/<sql_index>_filename.sql
 			are looking for sql index ^
 		*/
 		if parts := strings.Split(f.Name(), "_"); len(parts) > 1 {
@@ -66,8 +66,8 @@ func ReadDir(dir string, set *Set) error {
 			}
 		} else {
 			return fmt.Errorf(
-				"file %s does not have correct format <sql_index>_filename.sql, dont know how to parse",
-				f.Name(),
+				"file %s/%s does not have correct format <sql_index>_filename.sql, dont know how to parse",
+				dir, f.Name(),
 			)
 		}
 
@@ -83,8 +83,8 @@ func ReadDir(dir string, set *Set) error {
 				serviceName = folders[1][len(parts[0])+1 : len(folders[1])]
 			} else {
 				return fmt.Errorf(
-					"file %s does not have correct format <service_index>_<service_name>, dont know how to parse",
-					folders[1],
+					"file %s does not have correct format <service_index>_<service_name>, please update file name to have index and name",
+					dir,
 				)
 			}
 		}
@@ -97,7 +97,7 @@ func ReadDir(dir string, set *Set) error {
 			return errors.Wrapf(err, "failed to open file %s", fullPath)
 		}
 
-		m := NewMigration([]string{string(file)})
+		m := NewMigration([]string{string(file)}, fullPath)
 		set.Add(serviceName, servicePriority, migrationPriority, m)
 	}
 
