@@ -172,7 +172,7 @@ func TestAllowError(t *testing.T) {
 	-- --   allow_error: true  
 	--
 	THIS IS SQL WITH AN ERROR`,
-	})
+	}, "./migration")
 
 	if mig.AllowError != true {
 		log.Error().Msg("allow error should be true")

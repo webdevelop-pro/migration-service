@@ -4,7 +4,7 @@ migrations:
   queries:
   - |
     --- update updated_at automatically on every update operation
-    CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+    CREATE OR REPLACE FUNCTION update_at_set_timestamp()
     RETURNS TRIGGER AS $$
     BEGIN
       NEW.updated_at = NOW();
@@ -39,7 +39,7 @@ migrations:
     CREATE TRIGGER set_timestamp_email_emails
       BEFORE UPDATE ON email_emails
       FOR EACH ROW
-      EXECUTE PROCEDURE trigger_set_timestamp();
+      EXECUTE PROCEDURE update_at_set_timestamp();
     COMMIT;
 
     --- send email on insert event
