@@ -49,7 +49,7 @@ func main() {
 }
 
 func RunMigrations(sd fx.Shutdowner, app *app.App, c *configurator.Configurator) {
-	if err := app.ApplyAll(); err != nil {
+	if err := app.ApplyAll(""); err != nil {
 		log := logger.NewDefault()
 		log.Error().Err(err).Msg("error during migrations")
 	}

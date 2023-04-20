@@ -2,7 +2,7 @@ package migration
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -33,15 +33,15 @@ func (m yamlMigration) ToMigration() Migration {
 }
 
 // ReadDir reads migrations from all yaml files in the dir.
-func ReadDir(dir string, set *Set) error {
-	files, err := ioutil.ReadDir(dir)
+func ReadDir(rootDir, subDir string, set *Set) error {
+	files, err := os.ReadDir(filepath.Join(rootDir, subDir))
 	if err != nil {
 		return errors.Wrap(err, "failed to read directory")
 	}
 
 	for _, f := range files {
 		if f.IsDir() {
-			if err := ReadDir(filepath.Join(dir, f.Name()), set); err != nil {
+			if err := ReadDir(rootDir, filepath.Join(subDir, f.Name()), set); err != nil {
 				return err
 			}
 			continue
@@ -67,7 +67,7 @@ func ReadDir(dir string, set *Set) error {
 		} else {
 			return fmt.Errorf(
 				"file %s/%s does not have correct format <sql_index>_filename.sql, dont know how to parse",
-				dir, f.Name(),
+				filepath.Join(rootDir, subDir), f.Name(),
 			)
 		}
 
@@ -75,24 +75,24 @@ func ReadDir(dir string, set *Set) error {
 			migratios/<service_index>_<service_name>/<sql_index>_filename.sql
 			are looking for those  ^            ^
 		*/
-		if folders := strings.Split(dir, "/"); len(folders) > 1 {
-			if parts := strings.Split(folders[1], "_"); len(parts) > 1 {
+		if folders := strings.Split(subDir, "/"); len(folders) > 0 {
+			if parts := strings.Split(folders[0], "_"); len(parts) > 1 {
 				if p, err := strconv.Atoi(parts[0]); err == nil {
 					servicePriority = p
 				}
-				serviceName = folders[1][len(parts[0])+1 : len(folders[1])]
+				serviceName = folders[0][len(parts[0])+1 : len(folders[0])]
 			} else {
 				return fmt.Errorf(
 					"file %s does not have correct format <service_index>_<service_name>, please update file name to have index and name",
-					dir,
+					subDir,
 				)
 			}
 		}
 
-		fullPath := filepath.Join(dir, f.Name())
+		fullPath := filepath.Join(rootDir, subDir, f.Name())
 
 		/* #nosec */
-		file, err := ioutil.ReadFile(fullPath)
+		file, err := os.ReadFile(fullPath)
 		if err != nil {
 			return errors.Wrapf(err, "failed to open file %s", fullPath)
 		}

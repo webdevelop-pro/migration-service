@@ -27,11 +27,20 @@ func New(c *configurator.Configurator, repo adapters.Repository) *App {
 		log:  logger.NewDefaultComponent(pkgName),
 		repo: repo,
 		cfg:  cfg,
-		set:  migration.New(cfg.Dir, repo),
+		set:  migration.New(repo),
 	}
 }
 
-func (a *App) ApplyAll() error {
+func (a *App) ApplyAll(dir string) error {
+	if dir == "" {
+		dir = a.cfg.Dir
+	}
+	a.set.ClearData()
+	err := migration.ReadDir(dir, "", a.set)
+	if err != nil {
+		a.log.Error().Err(err).Msgf("can't get migration data from directory: %s", a.cfg.Dir)
+		panic(err)
+	}
 	n, err := a.set.ApplyAll()
 	if err != nil {
 		a.log.Error().Err(err).Msg("failed to apply all migrations")

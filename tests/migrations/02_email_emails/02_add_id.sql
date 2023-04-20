@@ -1,1 +1,0 @@
-ALTER TABLE email_emails ADD COLUMN external_id bigint default 0;
