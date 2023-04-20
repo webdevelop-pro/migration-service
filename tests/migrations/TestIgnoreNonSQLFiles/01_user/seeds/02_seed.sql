@@ -1,0 +1,1 @@
+insert into user_users(name) values('tamata')
