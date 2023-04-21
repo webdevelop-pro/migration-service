@@ -2,10 +2,7 @@ package main
 
 import (
 	"context"
-	"os"
-	"os/exec"
 	"testing"
-	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/webdevelop-pro/go-common/configurator"
@@ -22,42 +19,27 @@ type sqlFiles struct {
 }
 
 func testInit() (logger.Logger, *configurator.Configurator, *postgres.Repository, *app.App, *db.DB, context.Context) {
-	// migration folder is required
-	exec.Command("mkdir", "./migrations/").Output()
-	log := logger.NewDefault()
+	_log := logger.NewDefault()
 	c := configurator.New()
 	pg := postgres.New(c)
-	migration := app.New(c, pg)
+	_migration := app.New(c, pg)
 	rawPG := db.New(c)
 	ctx := context.Background()
 
-	rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS email_emails")
-	rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS user_users")
-	rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_service")
-
-	return log, c, pg, migration, rawPG, ctx
-}
-
-func setUp(log logger.Logger, files []sqlFiles) {
-	// old left overs
-	exec.Command("rm", "-rf", "./migrations/").Output()
-	// ToDo
-	// flush system cache?
-	time.Sleep(2 * time.Second)
-	for _, file := range files {
-		dir, err := exec.Command("dirname", file.filename).Output()
-		if err != nil {
-			log.Fatal().Err(err).Msg("cannot create a dicrectory")
-		}
-
-		if _, err := exec.Command("mkdir", "-p", string(dir[0:len(dir)-1])).Output(); err != nil {
-			log.Fatal().Err(err).Msg("cannot create a dicrectory")
-		}
-
-		if err := os.WriteFile(file.filename, []byte(file.sql), 0644); err != nil {
-			log.Fatal().Err(err).Msg("cannot create a file")
-		}
+	_, err := rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS email_emails")
+	if err != nil {
+		_log.Fatal().Err(err).Msg("can't drop table email_emails from DB")
 	}
+	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS user_users")
+	if err != nil {
+		_log.Fatal().Err(err).Msg("can't drop table user_users from DB")
+	}
+	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_service")
+	if err != nil {
+		_log.Fatal().Err(err).Msg("can't drop table migration_service from DB")
+	}
+
+	return _log, c, pg, _migration, rawPG, ctx
 }
 
 func checkResults(t *testing.T, rawPG *db.DB, log logger.Logger, expName string, expVer int) {
@@ -77,91 +59,43 @@ func checkResults(t *testing.T, rawPG *db.DB, log logger.Logger, expName string,
 
 // TestIgnoreNonSQLFiles checks if only *.sql files are applied
 func TestIgnoreNonSQLFiles(t *testing.T) {
-	log, _, pg, migration, rawPG, ctx := testInit()
+	_log, _, pg, _migration, rawPG, ctx := testInit()
 
 	err := pg.CreateMigrationTable(ctx)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cannot create migration table")
+		_log.Fatal().Err(err).Msg("cannot create migration table")
 	}
 
-	initSqls := []sqlFiles{
-		{
-			"./migrations/01_user/01_init.sql",
-			`--- some comment
-CREATE TABLE user_users (
-    id serial not null primary key,
-    name varchar(150) not null default ''
-);`,
-		},
-		{
-			"./migrations/01_user/01_seed_test.yaml",
-			`service: user
-	migrations:
-	- version: 1
-	  allowError: false
-	  queries:
-	  - |
-		DELETE FROM user_users;
-		INSERT INTO user_users (name)  VALUES ('Maria');`,
-		},
-		{
-			"./migrations/01_user/seeds/02_seed.sql",
-			`insert into user_users(name) values('tamata')`,
-		},
-	}
-	setUp(log, initSqls)
-
-	if err := migration.ApplyAll(); err != nil {
-		log.Fatal().Err(err).Msg("cannot apply migrations")
+	if err := _migration.ApplyAll("./migrations/TestIgnoreNonSQLFiles"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
 
-	checkResults(t, rawPG, log, "user", 2)
+	checkResults(t, rawPG, _log, "user", 2)
 }
 
 // TestServicePriorities checks if services executed in correct order
 func TestServicePriorities(t *testing.T) {
-	// we will create new migration for email service
-	// and verify if migration will be applied in correct order
-	// first user and then migration
-	log, _, _, migration, rawPG, _ := testInit()
+	// we will create new _migration for email service
+	// and verify if _migration will be applied in correct order
+	// first user and then _migration
+	_log, _, _, _migration, rawPG, _ := testInit()
 
 	// Create two different services with different indexes
-	// make sure migration executed in correct order
-	initSqls := []sqlFiles{
-		{
-			"./migrations/02_email/01_init.sql",
-			`
-	CREATE TABLE email_emails (
-	id serial primary key,
-	user_id integer not null,
-		FOREIGN KEY (user_id) REFERENCES user_users ("id")
-		ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED);
-	CREATE INDEX email_emails_user_fk ON email_emails USING btree ("user_id");`,
-		},
-		{
-			"./migrations/01_user/01_init.sql",
-			`--- some comment
-CREATE TABLE user_users (
-    id serial not null primary key,
-    name varchar(150) not null default ''
-);`,
-		},
-	}
-	setUp(log, initSqls)
+	// make sure _migration executed in correct order
 
 	// ToDo
 	// check uniqueness of services numbers
 	/*
-		// broken file record, migration should not be applied create new email table
+		// broken file record, _migration should not be applied create new email table
 		if err := os.WriteFile("./migrations/02_email/01_init-second-time.sql", []byte(SQL), 0644); err != nil {
-			log.Fatal().Err(err).Msg("cannot create a file")
+			_log.Fatal().Err(err).Msg("cannot create a file")
 		}
 	*/
-	if err := migration.ApplyAll(); err != nil {
-		log.Fatal().Err(err).Msg("cannot apply migrations")
+	if err := _migration.ApplyAll("./migrations/TestServicePriorities"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
 
-	checkResults(t, rawPG, log, "email", 1)
+	checkResults(t, rawPG, _log, "email", 1)
 }
 
 func TestAllowError(t *testing.T) {
@@ -182,93 +116,51 @@ func TestAllowError(t *testing.T) {
 
 // TestMigrationPriorities checks if files executed in correct order
 func TestMigrationPriorities(t *testing.T) {
-	// we will create new migration for email service
-	// and verify if migration will be applied in correct order
-	// first user and then migration
-	log, _, _, migration, rawPG, _ := testInit()
+	// we will create new _migration for email service
+	// and verify if _migration will be applied in correct order
+	// first user and then _migration
+	_log, _, _, _migration, rawPG, _ := testInit()
 
-	log.Debug().Msg("trying to apply migration")
-
-	initSqls := []sqlFiles{
-		{
-			"./migrations/01_user_user/04_add_bitint.sql",
-			`ALTER TABLE user_users ADD COLUMN external_id bigint default 0;`,
-		},
-		{
-			"./migrations/01_user_user/01_init.sql",
-			`--- some comment
-CREATE TABLE user_users (
-    id serial not null primary key,
-    name varchar(150) not null default ''
-);`,
-		},
-		{
-			"./migrations/02_email_emails/02_add_id.sql",
-			`ALTER TABLE email_emails ADD COLUMN external_id bigint default 0;`,
-		},
-		{
-			"./migrations/02_email_emails/01_create.sql",
-			`CREATE TABLE email_emails (id serial not null primary key);`,
-		},
-		{
-			"./migrations/01_user_user/02_add_email.sql",
-			`--- some comment
-	ALTER TABLE user_users ADD email varchar(150) not null default '' UNIQUE;`,
-		},
-	}
-	setUp(log, initSqls)
+	_log.Debug().Msg("trying to apply _migration")
 
 	// ToDo
 	// check uniqueness of services numbers
 	/*
-		// broken file record, migration should not be applied since we have order duplication
+		// broken file record, _migration should not be applied since we have order duplication
 		if err := os.WriteFile("./migrations/01_user/03_add_bitint-for-second-time.sql", []byte(SQL), 0644); err != nil {
-			log.Fatal().Err(err).Msg("cannot create a file")
+			_log.Fatal().Err(err).Msg("cannot create a file")
 		}
 	*/
 
-	if err := migration.ApplyAll(); err != nil {
-		log.Fatal().Err(err).Msg("cannot apply migrations")
+	if err := _migration.ApplyAll("./migrations/TestMigrationPriorities"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
 
-	checkResults(t, rawPG, log, "email_emails", 2)
+	checkResults(t, rawPG, _log, "email_emails", 2)
 }
 
 // TestMigrationApplied checks applied migrations commited to db
 func TestMigrationCommited(t *testing.T) {
-	// we will create new migration for email service
-	// and verify if migration will be applied in correct order
-	// first user and then migration
-	log, _, _, migration, rawPG, _ := testInit()
+	// we will create new _migration for email service
+	// and verify if _migration will be applied in correct order
+	// first user and then _migration
+	_log, _, _, _migration, rawPG, _ := testInit()
 
-	log.Debug().Msg("trying to apply migration")
-
-	initSqls := []sqlFiles{
-		{
-			"./migrations/01_user_users/01_add_bitint.sql",
-			`-- allow_error: true
-			ALTER TABLE user_users ADD COLUMN external_id bigint default 0;`,
-		},
-		{
-			"./migrations/01_user_users/02_init.sql",
-			`ERROR SQL`,
-		},
-	}
-	setUp(log, initSqls)
+	_log.Debug().Msg("trying to apply _migration")
 
 	// ToDo
 	// check uniqueness of services numbers
 	/*
-		// broken file record, migration should not be applied since we have order duplication
+		// broken file record, _migration should not be applied since we have order duplication
 		if err := os.WriteFile("./migrations/01_user/03_add_bitint-for-second-time.sql", []byte(SQL), 0644); err != nil {
-			log.Fatal().Err(err).Msg("cannot create a file")
+			_log.Fatal().Err(err).Msg("cannot create a file")
 		}
 	*/
 
-	if err := migration.ApplyAll(); err == nil {
-		log.Fatal().Msg("last migration should fail")
+	if err := _migration.ApplyAll("./migrations/TestMigrationCommited"); err == nil {
+		_log.Fatal().Msg("last _migration should fail")
 		t.Fail()
 	}
 
-	checkResults(t, rawPG, log, "user_users", 1)
+	checkResults(t, rawPG, _log, "user_users", 1)
 }

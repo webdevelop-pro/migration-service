@@ -21,25 +21,16 @@ type Set struct {
 }
 
 // New returns new instance of Set.
-func New(dir string, repo adapters.Repository) *Set {
-	set := NewSet(repo)
-	err := ReadDir(dir, set)
-
-	if err != nil {
-		fmt.Println(err, dir, repo)
-		panic(err)
-	}
-
-	return set
-}
-
-// NewSet returns new instance of Set.
-func NewSet(repo adapters.Repository) *Set {
+func New(repo adapters.Repository) *Set {
 	return &Set{
 		data: make(map[int]map[string]map[int][]Migration),
 		repo: repo,
 		log:  logger.NewDefaultComponent("migration"),
 	}
+}
+
+func (s *Set) ClearData() {
+	s.data = make(map[int]map[string]map[int][]Migration)
 }
 
 // ServiceExists returns true if there are known migrations for service.

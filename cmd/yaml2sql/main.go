@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -29,7 +28,7 @@ type yamlServiceSet struct {
 
 // ReadDir reads migrations from all yaml files in the dir.
 func Migrate(inputDir string, outputDir string) error {
-	files, err := ioutil.ReadDir(inputDir)
+	files, err := os.ReadDir(inputDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to read directory")
 	}
