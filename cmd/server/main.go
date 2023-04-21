@@ -50,9 +50,9 @@ func main() {
 	log.Info().Msg("done")
 }
 
-func RunMigrations(sd fx.Shutdowner, app *app.App, c *configurator.Configurator) {
-	cfg := c.New(pkgName, &Config{}, pkgName).(*Config)
-	if err := app.ApplyAll(cfg.Dir); err != nil {
+func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
+	cfg := c.New(pkgName, &app.Config{}, "migration").(*app.Config)
+	if err := _app.ApplyAll(cfg.Dir); err != nil {
 		log := logger.NewDefault()
 		log.Error().Err(err).Msg("error during migrations")
 	}
