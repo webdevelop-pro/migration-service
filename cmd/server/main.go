@@ -12,6 +12,8 @@ import (
 	"go.uber.org/fx"
 )
 
+const pkgName = "migration"
+
 // @schemes https
 func main() {
 	log := logger.NewDefault()
@@ -49,7 +51,8 @@ func main() {
 }
 
 func RunMigrations(sd fx.Shutdowner, app *app.App, c *configurator.Configurator) {
-	if err := app.ApplyAll(""); err != nil {
+	cfg := c.New(pkgName, &Config{}, pkgName).(*Config)
+	if err := app.ApplyAll(cfg.Dir); err != nil {
 		log := logger.NewDefault()
 		log.Error().Err(err).Msg("error during migrations")
 	}

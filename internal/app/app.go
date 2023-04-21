@@ -17,28 +17,21 @@ type App struct {
 	log  logger.Logger
 	repo adapters.Repository
 	set  *migration.Set
-	cfg  *Config
 }
 
 func New(c *configurator.Configurator, repo adapters.Repository) *App {
-	cfg := c.New(pkgName, &Config{}, pkgName).(*Config)
-
 	return &App{
 		log:  logger.NewDefaultComponent(pkgName),
 		repo: repo,
-		cfg:  cfg,
 		set:  migration.New(repo),
 	}
 }
 
 func (a *App) ApplyAll(dir string) error {
-	if dir == "" {
-		dir = a.cfg.Dir
-	}
 	a.set.ClearData()
 	err := migration.ReadDir(dir, "", a.set)
 	if err != nil {
-		a.log.Error().Err(err).Msgf("can't get migration data from directory: %s", a.cfg.Dir)
+		a.log.Error().Err(err).Msgf("can't get migration data from directory: %s", dir)
 		panic(err)
 	}
 	n, err := a.set.ApplyAll()
