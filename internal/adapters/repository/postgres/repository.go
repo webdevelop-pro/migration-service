@@ -75,7 +75,7 @@ func (r *Repository) Exec(ctx context.Context, sql string, arguments ...interfac
 
 // CreateMigrationTable will create a migration table
 func (r *Repository) CreateMigrationTable(ctx context.Context) error {
-	const query = `CREATE TABLE migration_service (
+	const query = `CREATE TABLE IF NOT EXISTS migration_service (
 	id serial NOT NULL PRIMARY KEY,
 	name varchar NOT NULL UNIQUE,
 	version int NOT NULL DEFAULT 0,
@@ -90,7 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER set_timestamp_migration_service
+CREATE OR REPLACE TRIGGER set_timestamp_migration_service
   BEFORE UPDATE ON migration_service
   FOR EACH ROW
   EXECUTE PROCEDURE update_at_set_timestamp();

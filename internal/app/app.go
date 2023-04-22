@@ -95,3 +95,7 @@ func (a *App) GetSQL(ctx context.Context, dir string, serviceName string) (sql s
 
 	return
 }
+
+func (a *App) Init(ctx context.Context) error {
+	return a.repo.CreateMigrationTable(ctx)
+}
