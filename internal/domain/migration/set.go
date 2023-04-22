@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/webdevelop-pro/go-common/logger"
@@ -201,6 +202,39 @@ func (s *Set) Apply(name string, priority, minVersion int) (int, int, error) {
 	}
 
 	return n, lastVersion, nil
+}
+
+// GetSQL returns SQL statement for specified service with version > minVersion.
+func (s *Set) GetSQL(name string, priority, minVersion int) (sql string, err error) {
+	migrations := s.serviceMigrations(name, priority, minVersion)
+
+	if len(migrations) == 0 {
+		return
+	}
+
+	versions := make([]int, len(migrations))
+
+	i := 0
+
+	for ver := range migrations {
+		versions[i] = ver
+
+		i++
+	}
+	sort.Ints(versions)
+
+	for _, ver := range versions {
+		for _, mig := range migrations[ver] {
+			for _, query := range mig.Queries {
+				sql += "\n" + strings.TrimSpace(query)
+				if sql[len(sql)-1:] != ";" {
+					sql += ";"
+				}
+			}
+		}
+	}
+
+	return sql, nil
 }
 
 // ApplyAll applies all migrations for all services.
