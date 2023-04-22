@@ -6,28 +6,31 @@ All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
 In order to work properly migration service require `migration_service` table to be created first
 ```sql
-CREATE TABLE migration_service (
-	id serial NOT NULL PRIMARY KEY,
-	name varchar NOT NULL UNIQUE,
-	version int NOT NULL DEFAULT 0,
-	created_at timestamp with time zone DEFAULT now() NOT NULL,
-	updated_at timestamp with time zone NOT NULL DEFAULT NOW()
-);
+CREATE TABLE IF NOT EXISTS migration_service (
+    id serial NOT NULL PRIMARY KEY,
+    name varchar NOT NULL UNIQUE,
+    version int NOT NULL DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone NOT NULL DEFAULT NOW()
+    );
 CREATE OR REPLACE FUNCTION update_at_set_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
-  RETURN NEW;
+RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER set_timestamp_migration_service
-  BEFORE UPDATE ON migration_service
-  FOR EACH ROW
-  EXECUTE PROCEDURE update_at_set_timestamp();
+CREATE OR REPLACE TRIGGER set_timestamp_migration_service
+    BEFORE UPDATE ON migration_service
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_at_set_timestamp();
 COMMIT;
 ```
-or execute `repositary.CreateMigrationTable` function
+or execute 
+```sh
+    go run cmd/server/main.go --init
+```
 
 
 ## File structure
