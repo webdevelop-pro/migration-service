@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/logger"
@@ -34,8 +36,8 @@ func main() {
 		),
 
 		fx.Invoke(
-			// Run migrations
-			RunMigrations,
+			// Run application
+			RunApp,
 		),
 	)
 
@@ -48,6 +50,16 @@ func main() {
 	log.Info().Msg("done")
 }
 
+func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
+	finalSql := flag.String("final-sql", "", "if provided - program return final SQL for migrations without applying it. Argument = service name")
+	flag.Parse()
+	if *finalSql != "" {
+		GetFinalSQL(sd, _app, c, *finalSql)
+	} else {
+		RunMigrations(sd, _app, c)
+	}
+}
+
 func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
 	cfg := c.New("migration", &app.Config{}, "migration").(*app.Config)
 	if err := _app.ApplyAll(cfg.Dir); err != nil {
@@ -55,5 +67,16 @@ func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator
 		log.Error().Err(err).Msg("error during migrations")
 	}
 
+	sd.Shutdown()
+}
+
+func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, serviceName string) {
+	cfg := c.New("migration", &app.Config{}, "migration").(*app.Config)
+	sql, err := _app.GetSQL(context.Background(), cfg.Dir, serviceName)
+	if err != nil {
+		log := logger.NewDefault()
+		log.Error().Err(err).Msg("error during forming sql for migration")
+	}
+	fmt.Println(sql)
 	sd.Shutdown()
 }

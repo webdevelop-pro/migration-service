@@ -70,3 +70,28 @@ func (a *App) Apply(ctx context.Context, serviceName string) (int, error) {
 
 	return n, nil
 }
+
+func (a *App) GetSQL(ctx context.Context, dir string, serviceName string) (sql string, err error) {
+	a.set.ClearData()
+	err = migration.ReadDir(dir, "", a.set)
+	if err != nil {
+		a.log.Error().Err(err).Msgf("can't get migration data from directory: %s", dir)
+		panic(err)
+	}
+
+	if serviceName == "" || !a.set.ServiceExists(serviceName) {
+		return "", fmt.Errorf("service '%s' not found", serviceName)
+	}
+
+	ver, err := a.repo.GetServiceVersion(ctx, serviceName)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get current service version")
+	}
+
+	sql, err = a.set.GetSQL(serviceName, -1, ver)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get migrations")
+	}
+
+	return
+}
