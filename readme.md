@@ -4,9 +4,9 @@
 ## Structure
 All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
-In order to work properly migration service require `migration_service` table to be created first
+In order to work properly migration service require `migration_services` table to be created first
 ```sql
-CREATE TABLE IF NOT EXISTS migration_service (
+CREATE TABLE IF NOT EXISTS migration_services (
     id serial NOT NULL PRIMARY KEY,
     name varchar NOT NULL UNIQUE,
     version int NOT NULL DEFAULT 0,
@@ -21,8 +21,8 @@ RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER set_timestamp_migration_service
-    BEFORE UPDATE ON migration_service
+CREATE OR REPLACE TRIGGER set_timestamp_migration_services
+    BEFORE UPDATE ON migration_services
     FOR EACH ROW
     EXECUTE PROCEDURE update_at_set_timestamp();
 COMMIT;
@@ -45,7 +45,7 @@ __Example__:
 ```sql
 --- allow_error: false 
 CREATE TABLE user_users(id serial primary key);
-CREATE TABLE migration_service (
+CREATE TABLE migration_services (
   id serial NOT NULL PRIMARY KEY,
   name varchar NOT NULL UNIQUE,
   version int NOT NULL DEFAULT 0,

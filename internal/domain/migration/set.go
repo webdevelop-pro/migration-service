@@ -190,7 +190,7 @@ func (s *Set) Apply(name string, priority, minVersion int) (int, int, error) {
 				}
 
 				if err := s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
-					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
+					return n, lastVersion, errors.Wrapf(err, "cannot update migration_services, ver: %d, file: %s", ver, mig.Path)
 				}
 
 				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", query, name, ver, mig.Path)

@@ -25,7 +25,7 @@ func New(c *configurator.Configurator) *Repository {
 
 // UpdateServiceVersion updates service version.
 func (r *Repository) UpdateServiceVersion(ctx context.Context, name string, ver int) error {
-	const query = `INSERT INTO migration_service (name, version) VALUES ($1, $2) ON CONFLICT(name) DO UPDATE SET version=$2`
+	const query = `INSERT INTO migration_services (name, version) VALUES ($1, $2) ON CONFLICT(name) DO UPDATE SET version=$2`
 	_, err := r.db.Exec(ctx, query, name, ver)
 
 	if err != nil {
@@ -36,7 +36,7 @@ func (r *Repository) UpdateServiceVersion(ctx context.Context, name string, ver 
 
 // GetServiceVersion returns currently deployed version of the service.
 func (r *Repository) GetServiceVersion(ctx context.Context, name string) (int, error) {
-	const query = `SELECT version FROM migration_service WHERE name=$1`
+	const query = `SELECT version FROM migration_services WHERE name=$1`
 
 	var pgErr *pgconn.PgError
 	var ver int
@@ -75,7 +75,7 @@ func (r *Repository) Exec(ctx context.Context, sql string, arguments ...interfac
 
 // CreateMigrationTable will create a migration table
 func (r *Repository) CreateMigrationTable(ctx context.Context) error {
-	const query = `CREATE TABLE IF NOT EXISTS migration_service (
+	const query = `CREATE TABLE IF NOT EXISTS migration_services (
 	id serial NOT NULL PRIMARY KEY,
 	name varchar NOT NULL UNIQUE,
 	version int NOT NULL DEFAULT 0,
@@ -90,8 +90,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER set_timestamp_migration_service
-  BEFORE UPDATE ON migration_service
+CREATE OR REPLACE TRIGGER set_timestamp_migration_services
+  BEFORE UPDATE ON migration_services
   FOR EACH ROW
   EXECUTE PROCEDURE update_at_set_timestamp();
 COMMIT;
