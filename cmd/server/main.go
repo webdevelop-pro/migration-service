@@ -51,13 +51,20 @@ func main() {
 }
 
 func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
+	init := flag.Bool("init", false, "initialize service by creating migration table at DB")
 	finalSql := flag.String("final-sql", "", "if provided - program return final SQL for migrations without applying it. Argument = service name")
 	flag.Parse()
+
+	if *init {
+		RunInit(sd, _app)
+		return
+	}
 	if *finalSql != "" {
 		GetFinalSQL(sd, _app, c, *finalSql)
-	} else {
-		RunMigrations(sd, _app, c)
+		return
 	}
+
+	RunMigrations(sd, _app, c)
 }
 
 func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
@@ -78,5 +85,15 @@ func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, 
 		log.Error().Err(err).Msg("error during forming sql for migration")
 	}
 	fmt.Println(sql)
+	sd.Shutdown()
+}
+
+func RunInit(sd fx.Shutdowner, _app *app.App) {
+	err := _app.Init(context.Background())
+	log := logger.NewDefault()
+	if err != nil {
+		log.Error().Err(err).Msg("error during creating migration table")
+	}
+	log.Info().Msg("successfully initialized")
 	sd.Shutdown()
 }
