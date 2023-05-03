@@ -116,21 +116,24 @@ func getMigrationInfo(path string) (migrationStats, error) {
 		)
 	}
 
+	serviceSubFolder := ""
 	pathParts := strings.Split(path, "/")
 	serviceFolder := pathParts[len(pathParts)-2]
+	if !strings.Contains(serviceFolder, "_") {
+		serviceSubFolder = "_" + serviceFolder
+		serviceFolder = pathParts[len(pathParts)-3]
+	}
 
-	if folders := strings.Split(serviceFolder, "/"); len(folders) > 0 {
-		if parts := strings.Split(folders[0], "_"); len(parts) > 1 {
-			if p, err := strconv.Atoi(parts[0]); err == nil {
-				stats.ServicePriority = p
-			}
-			stats.ServiceName = folders[0][len(parts[0])+1 : len(folders[0])]
-		} else {
-			return stats, fmt.Errorf(
-				"folder %s does not have correct format <service_index>_<service_name>, please update file name to have index and name",
-				serviceFolder,
-			)
+	if parts := strings.Split(serviceFolder, "_"); len(parts) > 1 {
+		if p, err := strconv.Atoi(parts[0]); err == nil {
+			stats.ServicePriority = p
 		}
+		stats.ServiceName = serviceFolder[len(parts[0])+1:len(serviceFolder)] + serviceSubFolder
+	} else {
+		return stats, fmt.Errorf(
+			"folder %s does not have correct format <service_index>_<service_name>, please update file name to have index and name",
+			serviceFolder,
+		)
 	}
 
 	return stats, nil
