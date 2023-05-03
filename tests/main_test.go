@@ -70,7 +70,7 @@ func TestIgnoreNonSQLFiles(t *testing.T) {
 		_log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
 
-	checkResults(t, rawPG, _log, "user", 2)
+	checkResults(t, rawPG, _log, "user_seeds", 2)
 }
 
 // TestServicePriorities checks if services executed in correct order
