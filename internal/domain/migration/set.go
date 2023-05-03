@@ -160,7 +160,7 @@ func (s *Set) serviceMigrations(name string, priority, minVersion int) map[int][
 }
 
 // Apply applies migrations for specified service with version > minVersion.
-func (s *Set) Apply(name string, priority, minVersion int) (int, int, error) {
+func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int, error) {
 	migrations := s.serviceMigrations(name, priority, minVersion)
 
 	var n, lastVersion int
@@ -189,8 +189,10 @@ func (s *Set) Apply(name string, priority, minVersion int) (int, int, error) {
 					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, query, mig.Path)
 				}
 
-				if err := s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
-					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
+				if curVersion < ver {
+					if err := s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
+						return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
+					}
 				}
 
 				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", query, name, ver, mig.Path)
@@ -238,22 +240,30 @@ func (s *Set) GetSQL(name string, priority, minVersion int) (sql string, err err
 }
 
 // ApplyAll applies all migrations for all services.
-func (s *Set) ApplyAll() (int, error) {
-	var n int
+func (s *Set) ApplyAll(skipVersionCheck bool) (int, error) {
+	var (
+		n, ver, minVersion, curVersion int
+		err                            error
+	)
 	lastVersions := make(map[string]int)
 
 	pariorities := s.priorities()
 	for _, priority := range pariorities {
 		services := s.services(priority)
 		for _, service := range services {
-			ver, err := s.repo.GetServiceVersion(context.Background(), service)
+			minVersion = -1
+			curVersion, err = s.repo.GetServiceVersion(context.Background(), service)
 
 			if err != nil && priority > 0 && service != "migration" {
 				s.log.Error().Err(err).Msgf("failed to get service version for %s", service)
 				return n, fmt.Errorf("failed to get service version for %s", service)
 			}
 
-			num, lastVersion, err := s.Apply(service, priority, ver)
+			if !skipVersionCheck {
+				minVersion = curVersion
+			}
+
+			num, lastVersion, err := s.Apply(service, priority, minVersion, curVersion)
 			if err != nil {
 				s.log.Error().Err(err).Msgf("failed to apply migrations for %s", service)
 				return n, fmt.Errorf("failed to apply migrations for %s", service)
@@ -266,6 +276,39 @@ func (s *Set) ApplyAll() (int, error) {
 				}
 			}
 		}
+	}
+
+	return n, nil
+}
+
+// SkipAll marked all migrations as finished without applying them
+func (s *Set) SkipAll() (int, error) {
+	servicesWithLastVersion := make(map[string]int)
+	n := 0
+
+	for priority := range s.data {
+		for name, service := range s.data[priority] {
+			for ver := range service {
+				if ver >= servicesWithLastVersion[name] {
+					servicesWithLastVersion[name] = ver
+				}
+			}
+		}
+	}
+
+	for name, version := range servicesWithLastVersion {
+		curVersion, err := s.repo.GetServiceVersion(context.Background(), name)
+		if err != nil && name != "migration" {
+			s.log.Error().Err(err).Msgf("failed to get service version for %s", name)
+			return n, fmt.Errorf("failed to get service version for %s", name)
+		}
+
+		if curVersion < version {
+			if err := s.repo.UpdateServiceVersion(context.Background(), name, version); err != nil {
+				return n, errors.Wrapf(err, "cannot update migration_service %s, ver: %d", name, version)
+			}
+		}
+		n++
 	}
 
 	return n, nil
