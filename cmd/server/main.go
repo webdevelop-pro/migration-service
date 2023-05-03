@@ -53,10 +53,22 @@ func main() {
 func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
 	init := flag.Bool("init", false, "initialize service by creating migration table at DB")
 	finalSql := flag.String("final-sql", "", "if provided - program return final SQL for migrations without applying it. Argument = service name")
+	force := flag.Bool("force", false, "force apply migration without version checking. Accept files or dir paths. Will not update service version if applied version is lower, then already applied")
+	skip := flag.Bool("skip", false, "skip do not apply any migration but mark according migrations in migration_services table as completed")
 	flag.Parse()
 
 	if *init {
 		RunInit(sd, _app)
+		return
+	}
+	if *force {
+		args := flag.Args()
+		RunForceApply(sd, _app, args)
+		return
+	}
+	if *skip {
+		args := flag.Args()
+		RunSkipApply(sd, _app, args)
 		return
 	}
 	if *finalSql != "" {
@@ -95,5 +107,25 @@ func RunInit(sd fx.Shutdowner, _app *app.App) {
 		log.Error().Err(err).Msg("error during creating migration table")
 	}
 	log.Info().Msg("successfully initialized")
+	sd.Shutdown()
+}
+
+func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
+	err := _app.ForceApply(args)
+	log := logger.NewDefault()
+	if err != nil {
+		log.Error().Err(err).Msg("error during force apply migrations")
+	}
+	log.Info().Msg("successfully force applied")
+	sd.Shutdown()
+}
+
+func RunSkipApply(sd fx.Shutdowner, _app *app.App, args []string) {
+	err := _app.SkipApply(args)
+	log := logger.NewDefault()
+	if err != nil {
+		log.Error().Err(err).Msg("error during skip migrations")
+	}
+	log.Info().Msg("successfully skipped and marked as finished")
 	sd.Shutdown()
 }
