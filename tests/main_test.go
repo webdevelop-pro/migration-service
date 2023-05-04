@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog/log"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/db"
@@ -53,6 +55,49 @@ func checkResults(t *testing.T, rawPG *db.DB, log logger.Logger, expName string,
 	}
 	if name != expName || ver != expVer {
 		log.Fatal().Msgf("data does not match %s!=%s or %d!=%d", name, expName, ver, expVer)
+		t.Error()
+	}
+}
+
+func checkResultsByService(t *testing.T, rawPG *db.DB, log logger.Logger, serviceName string, expVer int) {
+	ctx := context.Background()
+	ver := 0
+	query := fmt.Sprintf("SELECT version FROM migration_services WHERE name='%s' ORDER by id DESC LIMIT 1", serviceName)
+	if err := rawPG.QueryRow(ctx, query).Scan(&ver); err != nil {
+		log.Fatal().Err(err).Msg("cannot get values for migration service")
+		t.Error()
+	}
+	if ver != expVer {
+		log.Fatal().Msgf("version does not match %d!=%d", ver, expVer)
+		t.Error()
+	}
+}
+
+func checkValueResults(t *testing.T, rawPG *db.DB, log logger.Logger, expVal, tableName, columnName string, id int) {
+	ctx := context.Background()
+	val := ""
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE id = %d LIMIT 1", columnName, tableName, id)
+	if err := rawPG.QueryRow(ctx, query).Scan(&val); err != nil {
+		log.Fatal().Err(err).Msgf("cannot get values for %s from %s", columnName, tableName)
+		t.Error()
+	}
+	if val != expVal {
+		log.Fatal().Msgf("data does not match %s!=%s", val, expVal)
+		t.Error()
+	}
+}
+
+func checkNullValueResults(t *testing.T, rawPG *db.DB, log logger.Logger, tableName, columnName string, id int) {
+	ctx := context.Background()
+	val := ""
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE id = %d LIMIT 1", columnName, tableName, id)
+	err := rawPG.QueryRow(ctx, query).Scan(&val)
+	if err != pgx.ErrNoRows {
+		if err != nil {
+			log.Fatal().Err(err).Msgf("cannot get values for %s from %s", columnName, tableName)
+		} else {
+			log.Fatal().Err(err).Msgf("result should be 'No rows', but value received: %s", val)
+		}
 		t.Error()
 	}
 }
@@ -163,4 +208,51 @@ func TestMigrationCommited(t *testing.T) {
 	}
 
 	checkResults(t, rawPG, _log, "user_users", 1)
+}
+
+// TestForceApply checks force apply migrations to db
+func TestForceApply(t *testing.T) {
+	// we will create new migration for user service in first phase
+	// and verify if migration with lower version will be applied by forceApply
+	// and verify, that version of service still 14 after applying version 3
+	_log, _, _, _migration, rawPG, _ := testInit()
+	_log.Debug().Msg("trying to apply first phase of migrations")
+
+	// First phase - apply init migrations
+	if err := _migration.ApplyAll("./migrations/TestForceApply/FirstPhase"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+
+	checkResultsByService(t, rawPG, _log, "user_users", 14)
+
+	// Second phase - try to apply migration with lower version
+	if err := _migration.ForceApply([]string{"./migrations/TestForceApply/SecondPhase"}); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+	checkResultsByService(t, rawPG, _log, "user_users", 14)
+	checkResultsByService(t, rawPG, _log, "user_users_seeds", 1)
+	checkValueResults(t, rawPG, _log, "+1 (555) 555-1234", "user_users", "phone", 1)
+}
+
+// TestFakeApply checks writing applied migrations to migration_services table without actually applying migrations
+func TestFakeApply(t *testing.T) {
+	// we will create new migration for user service in first phase
+	// and verify if migration will be checked as finished without applying
+	_log, _, _, _migration, rawPG, _ := testInit()
+	_log.Debug().Msg("trying to apply first phase of migrations")
+
+	// First phase - apply init migrations
+	if err := _migration.ApplyAll("./migrations/TestFakeApply/FirstPhase"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+
+	checkResultsByService(t, rawPG, _log, "user_users", 1)
+
+	// Second phase - try to fake apply migrations without actually applying
+	if err := _migration.FakeApply([]string{"./migrations/TestFakeApply/SecondPhase"}); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+	checkResultsByService(t, rawPG, _log, "user_users", 1)
+	checkResultsByService(t, rawPG, _log, "user_users_seeds", 2)
+	checkNullValueResults(t, rawPG, _log, "user_users", "name", 1)
 }
