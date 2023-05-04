@@ -1,0 +1,1 @@
+insert into user_users(id, name) values(1, 'test_user')
