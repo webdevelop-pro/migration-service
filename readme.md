@@ -83,7 +83,7 @@ force apply migration without version checking. Can accept multiply files or dir
 set -a && source .dev.env && go run cmd/server/main.go --force ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
 ```
 
-### --skip
+### --fake
 do not apply any migration but mark according migrations in `migration_services` table as completed. Can accept multiply files or dir paths
 ```sh 
 set -a && source .dev.env && go run cmd/server/main.go --skip ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
