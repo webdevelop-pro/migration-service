@@ -34,9 +34,9 @@ func testInit() (logger.Logger, *configurator.Configurator, *postgres.Repository
 	if err != nil {
 		_log.Fatal().Err(err).Msg("can't drop table user_users from DB")
 	}
-	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_service")
+	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_services")
 	if err != nil {
-		_log.Fatal().Err(err).Msg("can't drop table migration_service from DB")
+		_log.Fatal().Err(err).Msg("can't drop table migration_services from DB")
 	}
 
 	return _log, c, pg, _migration, rawPG, ctx
@@ -46,7 +46,7 @@ func checkResults(t *testing.T, rawPG *db.DB, log logger.Logger, expName string,
 	ctx := context.Background()
 	name := ""
 	ver := 0
-	query := "SELECT name, version FROM migration_service ORDER by id DESC LIMIT 1"
+	query := "SELECT name, version FROM migration_services ORDER by id DESC LIMIT 1"
 	if err := rawPG.QueryRow(ctx, query).Scan(&name, &ver); err != nil {
 		log.Fatal().Err(err).Msg("cannot get values for migration service")
 		t.Error()
