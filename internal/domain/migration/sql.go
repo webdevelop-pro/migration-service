@@ -32,6 +32,12 @@ func (m yamlMigration) ToMigration() Migration {
 	}
 }
 
+type migrationStats struct {
+	ServicePriority   int
+	ServiceName       string
+	MigrationPriority int
+}
+
 // ReadDir reads migrations from all yaml files in the dir.
 func ReadDir(rootDir, subDir string, set *Set) error {
 	files, err := os.ReadDir(filepath.Join(rootDir, subDir))
@@ -50,46 +56,12 @@ func ReadDir(rootDir, subDir string, set *Set) error {
 		if filepath.Ext(f.Name()) != ".sql" {
 			continue
 		}
-		servicePriority := 1
-		serviceName := ""
-		migrationPriority := 0
-
-		/*
-			migratios/service/<sql_index>_filename.sql
-			are looking for sql index ^
-		*/
-		if parts := strings.Split(f.Name(), "_"); len(parts) > 1 {
-			if p, err := strconv.Atoi(parts[0]); err == nil {
-				migrationPriority = p
-			} else {
-				return errors.Wrapf(err, "cannot parse %s", f.Name())
-			}
-		} else {
-			return fmt.Errorf(
-				"file %s/%s does not have correct format <sql_index>_filename.sql, dont know how to parse",
-				filepath.Join(rootDir, subDir), f.Name(),
-			)
-		}
-
-		/*
-			migratios/<service_index>_<service_name>/<sql_index>_filename.sql
-			are looking for those  ^            ^
-		*/
-		if folders := strings.Split(subDir, "/"); len(folders) > 0 {
-			if parts := strings.Split(folders[0], "_"); len(parts) > 1 {
-				if p, err := strconv.Atoi(parts[0]); err == nil {
-					servicePriority = p
-				}
-				serviceName = folders[0][len(parts[0])+1 : len(folders[0])]
-			} else {
-				return fmt.Errorf(
-					"file %s does not have correct format <service_index>_<service_name>, please update file name to have index and name",
-					subDir,
-				)
-			}
-		}
 
 		fullPath := filepath.Join(rootDir, subDir, f.Name())
+		stats, err := getMigrationInfo(fullPath)
+		if err != nil {
+			return err
+		}
 
 		/* #nosec */
 		file, err := os.ReadFile(fullPath)
@@ -98,8 +70,71 @@ func ReadDir(rootDir, subDir string, set *Set) error {
 		}
 
 		m := NewMigration([]string{string(file)}, fullPath)
-		set.Add(serviceName, servicePriority, migrationPriority, m)
+		set.Add(stats.ServiceName, stats.ServicePriority, stats.MigrationPriority, m)
 	}
 
 	return nil
+}
+
+// ReadFile reads migrations from file
+func ReadFile(path string, set *Set) error {
+	if filepath.Ext(path) != ".sql" {
+		return nil
+	}
+
+	stats, err := getMigrationInfo(path)
+	if err != nil {
+		return err
+	}
+
+	/* #nosec */
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open file %s", path)
+	}
+
+	m := NewMigration([]string{string(file)}, path)
+	set.Add(stats.ServiceName, stats.ServicePriority, stats.MigrationPriority, m)
+
+	return nil
+}
+
+func getMigrationInfo(path string) (migrationStats, error) {
+	var stats migrationStats
+	fileName := filepath.Base(path)
+
+	if parts := strings.Split(fileName, "_"); len(parts) > 1 {
+		if p, err := strconv.Atoi(parts[0]); err == nil {
+			stats.MigrationPriority = p
+		} else {
+			return stats, errors.Wrapf(err, "cannot parse %s", fileName)
+		}
+	} else {
+		return stats, fmt.Errorf(
+			"file %s does not have correct format <sql_index>_filename.sql, dont know how to parse",
+			path,
+		)
+	}
+
+	serviceSubFolder := ""
+	pathParts := strings.Split(path, "/")
+	serviceFolder := pathParts[len(pathParts)-2]
+	if !strings.Contains(serviceFolder, "_") {
+		serviceSubFolder = "_" + serviceFolder
+		serviceFolder = pathParts[len(pathParts)-3]
+	}
+
+	if parts := strings.Split(serviceFolder, "_"); len(parts) > 1 {
+		if p, err := strconv.Atoi(parts[0]); err == nil {
+			stats.ServicePriority = p
+		}
+		stats.ServiceName = serviceFolder[len(parts[0])+1:len(serviceFolder)] + serviceSubFolder
+	} else {
+		return stats, fmt.Errorf(
+			"folder %s does not have correct format <service_index>_<service_name>, please update file name to have index and name",
+			serviceFolder,
+		)
+	}
+
+	return stats, nil
 }

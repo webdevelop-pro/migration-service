@@ -29,7 +29,7 @@ COMMIT;
 ```
 or execute 
 ```sh
-    go run cmd/server/main.go --init
+set -a && source .dev.env && go run cmd/server/main.go --init
 ```
 
 
@@ -68,3 +68,24 @@ Once github PR reviewed and merged to one of those branches service will execute
 
 ## Env variables
 check `.example.env` file 
+
+## Application options
+
+### --init
+creates migration table
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --init
+```
+
+### --force
+force apply migration without version checking. Can accept multiply files or dir paths. Will not update service version if applied version is lower, then already applied
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --force ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
+```
+
+### --skip
+do not apply any migration but mark according migrations in `migration_services` table as completed. Can accept multiply files or dir paths
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --skip ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
+```
+

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/configurator"
@@ -34,7 +35,7 @@ func (a *App) ApplyAll(dir string) error {
 		a.log.Error().Err(err).Msgf("can't get migration data from directory: %s", dir)
 		panic(err)
 	}
-	n, err := a.set.ApplyAll()
+	n, err := a.set.ApplyAll(false)
 	if err != nil {
 		a.log.Error().Err(err).Msg("failed to apply all migrations")
 		return err
@@ -53,7 +54,7 @@ func (a *App) Apply(ctx context.Context, serviceName string) (int, error) {
 		return 0, errors.Wrap(err, "failed to get current service version")
 	}
 
-	n, lastVersion, err := a.set.Apply(serviceName, -1, ver)
+	n, lastVersion, err := a.set.Apply(serviceName, -1, ver, ver)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to apply migrations")
 	}
@@ -98,4 +99,49 @@ func (a *App) GetSQL(ctx context.Context, dir string, serviceName string) (sql s
 
 func (a *App) Init(ctx context.Context) error {
 	return a.repo.CreateMigrationTable(ctx)
+}
+
+func (a *App) ForceApply(args []string) error {
+	a.set.ClearData()
+	a.getMigrationDataFromAppArgs(args)
+	n, err := a.set.ApplyAll(true)
+	if err != nil {
+		a.log.Error().Err(err).Msg("failed to force apply all migrations")
+		return err
+	}
+	a.log.Info().Int("n", n).Msg("applied migrations")
+	return nil
+}
+
+func (a *App) SkipApply(args []string) error {
+	a.set.ClearData()
+	a.getMigrationDataFromAppArgs(args)
+	n, err := a.set.SkipAll()
+	if err != nil {
+		a.log.Error().Err(err).Msg("failed to skip migrations")
+		return err
+	}
+	a.log.Info().Int("n", n).Msg("skipped migrations")
+	return nil
+}
+
+func (a *App) getMigrationDataFromAppArgs(args []string) {
+	for _, path := range args {
+		pathInfo, err := os.Stat(path)
+		if err != nil {
+			a.log.Error().Err(err).Msgf("can't read info data from path: %s", path)
+			panic(err)
+		}
+
+		if pathInfo.IsDir() {
+			err = migration.ReadDir(path, "", a.set)
+		} else {
+			err = migration.ReadFile(path, a.set)
+		}
+
+		if err != nil {
+			a.log.Error().Err(err).Msgf("can't get migration data from path: %s", path)
+			panic(err)
+		}
+	}
 }
