@@ -248,7 +248,7 @@ func TestFakeApply(t *testing.T) {
 
 	checkResultsByService(t, rawPG, _log, "user_users", 1)
 
-	// Second phase - try to apply migration with lower version
+	// Second phase - try to fake apply migrations without actually applying
 	if err := _migration.FakeApply([]string{"./migrations/TestFakeApply/SecondPhase"}); err != nil {
 		_log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
