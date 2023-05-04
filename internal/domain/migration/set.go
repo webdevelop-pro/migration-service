@@ -281,8 +281,8 @@ func (s *Set) ApplyAll(skipVersionCheck bool) (int, error) {
 	return n, nil
 }
 
-// SkipAll marked all migrations as finished without applying them
-func (s *Set) SkipAll() (int, error) {
+// FakeAll marked all migrations as finished without applying them
+func (s *Set) FakeAll() (int, error) {
 	servicesWithLastVersion := make(map[string]int)
 	n := 0
 
