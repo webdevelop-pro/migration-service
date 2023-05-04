@@ -82,7 +82,7 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	}
 	if *skip {
 		args := flag.Args()
-		RunSkipApply(sd, _app, args)
+		RunFakeApply(sd, _app, args)
 		return
 	}
 	if *check {
@@ -153,8 +153,8 @@ func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
 	sd.Shutdown()
 }
 
-func RunSkipApply(sd fx.Shutdowner, _app *app.App, args []string) {
-	err := _app.SkipApply(args)
+func RunFakeApply(sd fx.Shutdowner, _app *app.App, args []string) {
+	err := _app.FakeApply(args)
 	log := logger.NewComponentLogger("RunSkipApply", nil)
 	if err != nil {
 		log.Error().Err(err).Msg("error during skip migrations")

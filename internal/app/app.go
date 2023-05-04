@@ -121,7 +121,7 @@ func (a *App) ForceApply(args []string) error {
 	return nil
 }
 
-func (a *App) SkipApply(args []string) error {
+func (a *App) FakeApply(args []string) error {
 	a.set.ClearData()
 	a.getMigrationDataFromAppArgs(args)
 	n, err := a.set.FakeAll()
