@@ -89,3 +89,4 @@ do not apply any migration but mark according migrations in `migration_services`
 set -a && source .dev.env && go run cmd/server/main.go --skip ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
 ```
 
+
