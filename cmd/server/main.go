@@ -6,23 +6,23 @@ import (
 	"fmt"
 
 	"github.com/webdevelop-pro/go-common/configurator"
-	"github.com/webdevelop-pro/go-common/logger"
+	"github.com/webdevelop-pro/go-common/server"
+	"github.com/webdevelop-pro/lib/logger"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
 	"github.com/webdevelop-pro/migration-service/internal/adapters/repository/postgres"
 	"github.com/webdevelop-pro/migration-service/internal/app"
+	"github.com/webdevelop-pro/migration-service/internal/ports"
 	"github.com/webdevelop-pro/migration-service/internal/services"
 	"go.uber.org/fx"
 )
 
 // @schemes https
 func main() {
-	log := logger.NewDefault()
+	log := logger.NewComponentLogger("fx", nil)
 
-	a := fx.New(
-		fx.Logger(logger.NewDefaultComponent("fx")),
+	fx.New(
+		fx.Logger(log),
 		fx.Provide(
-			// Default logger
-			logger.NewDefault,
 			// Configurator
 			configurator.New,
 			// Database connection
@@ -33,24 +33,34 @@ func main() {
 			app.New,
 			// Bind App with service interface
 			func(mig *app.App) services.Migration { return mig },
+			// Http Server
+			server.New,
 		),
 
 		fx.Invoke(
+			// InitHandlers
+			ports.InitHandlers,
 			// Run application
 			RunApp,
 		),
-	)
+	).Run()
 
-	if err := a.Start(context.Background()); err != nil {
-		log.Fatal().Err(err).Msg("failed")
-	}
+	/*
+		if err := a.Start(context.Background()); err != nil {
+			log.Fatal().Err(err).Msg("failed")
+		}
 
-	a.Done()
+		a.Done()
+	*/
 
 	log.Info().Msg("done")
 }
 
-func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
+func RunHttpServer(lc fx.Lifecycle, srv *server.HttpServer) {
+	server.StartServer(lc, srv)
+}
+
+func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx.Lifecycle, srv *server.HttpServer) {
 	init := flag.Bool("init", false, "initialize service by creating migration table at DB")
 	finalSql := flag.String("final-sql", "", "if provided - program return final SQL for migrations without applying it. Argument = service name")
 	force := flag.Bool("force", false, "force apply migration without version checking. Accept files or dir paths. Will not update service version if applied version is lower, then already applied")
@@ -77,23 +87,25 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
 	}
 
 	RunMigrations(sd, _app, c)
+	// Run server
+	RunHttpServer(lc, srv)
 }
 
 func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
 	cfg := c.New("migration", &app.Config{}, "migration").(*app.Config)
 	if err := _app.ApplyAll(cfg.Dir); err != nil {
-		log := logger.NewDefault()
+		log := logger.NewComponentLogger("RunMigrations", nil)
 		log.Error().Err(err).Msg("error during migrations")
 	}
 
-	sd.Shutdown()
+	// sd.Shutdown()
 }
 
 func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, serviceName string) {
 	cfg := c.New("migration", &app.Config{}, "migration").(*app.Config)
 	sql, err := _app.GetSQL(context.Background(), cfg.Dir, serviceName)
 	if err != nil {
-		log := logger.NewDefault()
+		log := logger.NewComponentLogger("GetFinalSQL", nil)
 		log.Error().Err(err).Msg("error during forming sql for migration")
 	}
 	fmt.Println(sql)
@@ -102,7 +114,7 @@ func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, 
 
 func RunInit(sd fx.Shutdowner, _app *app.App) {
 	err := _app.Init(context.Background())
-	log := logger.NewDefault()
+	log := logger.NewComponentLogger("RunInit", nil)
 	if err != nil {
 		log.Error().Err(err).Msg("error during creating migration table")
 	}
@@ -112,7 +124,7 @@ func RunInit(sd fx.Shutdowner, _app *app.App) {
 
 func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
 	err := _app.ForceApply(args)
-	log := logger.NewDefault()
+	log := logger.NewComponentLogger("RunForceApply", nil)
 	if err != nil {
 		log.Error().Err(err).Msg("error during force apply migrations")
 	}
@@ -122,7 +134,7 @@ func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
 
 func RunSkipApply(sd fx.Shutdowner, _app *app.App, args []string) {
 	err := _app.SkipApply(args)
-	log := logger.NewDefault()
+	log := logger.NewComponentLogger("RunSkipApply", nil)
 	if err != nil {
 		log.Error().Err(err).Msg("error during skip migrations")
 	}
