@@ -8,11 +8,12 @@ replace github.com/webdevelop-pro/go-logger => ./pkg/logger
 
 require (
 	github.com/jackc/pgconn v1.12.1
+	github.com/jackc/pgx/v4 v4.0.0-pre1.0.20190824185557-6972a5742186
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.27.0
-	github.com/webdevelop-pro/go-common v0.0.0-20230518151901-1d48b956ed92
+	github.com/webdevelop-pro/go-common v0.0.0-20230721175654-25c33f04e1d7
 	github.com/webdevelop-pro/lib v0.0.0-00010101000000-000000000000
 	go.uber.org/fx v1.17.1
 	gopkg.in/yaml.v2 v2.4.0
@@ -23,12 +24,12 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgtype v0.0.0-20190828014616-a8802b16cc59 // indirect
 	github.com/jackc/puddle/v2 v2.2.0 // indirect
 	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
@@ -57,5 +58,6 @@ require (
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
