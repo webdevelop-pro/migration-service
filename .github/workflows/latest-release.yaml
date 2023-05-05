@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - master
+      - dev
 
 jobs:
   release-linux-amd64:
