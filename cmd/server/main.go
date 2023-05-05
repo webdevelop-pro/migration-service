@@ -5,7 +5,13 @@ import (
 	"flag"
 	"fmt"
 
+<<<<<<< HEAD
 	"github.com/webdevelop-pro/lib/configurator"
+=======
+	"github.com/webdevelop-pro/go-common/configurator"
+	"github.com/webdevelop-pro/go-common/server"
+
+>>>>>>> 67d50a1 (added simple http server)
 	"github.com/webdevelop-pro/lib/logger"
 	"github.com/webdevelop-pro/lib/server"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
@@ -155,7 +161,7 @@ func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
 
 func RunFakeApply(sd fx.Shutdowner, _app *app.App, args []string) {
 	err := _app.FakeApply(args)
-	log := logger.NewComponentLogger("RunSkipApply", nil)
+	log := logger.NewComponentLogger("RunFakeApply", nil)
 	if err != nil {
 		log.Error().Err(err).Msg("error during skip migrations")
 	}
