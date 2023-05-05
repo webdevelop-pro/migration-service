@@ -82,7 +82,7 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	}
 	if *skip {
 		args := flag.Args()
-		RunFakeApply(sd, _app, args)
+		RunSkipApply(sd, _app, args)
 		return
 	}
 	if *check {
@@ -108,6 +108,8 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	} else {
 		sd.Shutdown()
 	}
+	// Run server
+	RunHttpServer(lc, srv)
 }
 
 func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
@@ -116,6 +118,8 @@ func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator
 		log := logger.NewComponentLogger("RunMigrations", nil)
 		log.Error().Err(err).Msg("error during migrations")
 	}
+
+	// sd.Shutdown()
 }
 
 func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, serviceName string) {
@@ -149,9 +153,9 @@ func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
 	sd.Shutdown()
 }
 
-func RunFakeApply(sd fx.Shutdowner, _app *app.App, args []string) {
-	err := _app.FakeApply(args)
-	log := logger.NewComponentLogger("RunFakeApply", nil)
+func RunSkipApply(sd fx.Shutdowner, _app *app.App, args []string) {
+	err := _app.SkipApply(args)
+	log := logger.NewComponentLogger("RunSkipApply", nil)
 	if err != nil {
 		log.Error().Err(err).Msg("error during skip migrations")
 	}
