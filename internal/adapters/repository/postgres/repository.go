@@ -114,17 +114,18 @@ CREATE TABLE IF NOT EXISTS migration_services_log
     updated_at              timestamptz            NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.migration_services_log DROP CONSTRAINT IF EXISTS migration_services_log_pk;
 ALTER TABLE public.migration_services_log
     ADD CONSTRAINT migration_services_log_pk
         UNIQUE (migration_services_name, priority, version, file_name);
 
-CREATE TRIGGER migration_services_log_updated_at_timestamp
+CREATE OR REPLACE TRIGGER migration_services_log_updated_at_timestamp
     BEFORE UPDATE
     ON migration_services_log
     FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
+EXECUTE PROCEDURE update_at_set_timestamp();
 
-CREATE INDEX migration_services_log_hash_index
+CREATE INDEX IF NOT EXISTS migration_services_log_hash_index
     on migration_services_log (hash);
 COMMIT;
 `
