@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/db"
+	"github.com/webdevelop-pro/migration-service/internal/app/dto"
 )
 
 const NO_TABLE_CODE = "42P01"
@@ -95,6 +96,37 @@ CREATE OR REPLACE TRIGGER set_timestamp_migration_services
   FOR EACH ROW
   EXECUTE PROCEDURE update_at_set_timestamp();
 COMMIT;
+
+CREATE TABLE IF NOT EXISTS migration_services_log
+(
+    id                      SERIAL PRIMARY KEY,
+
+    -- required
+    migration_services_name character varying(255) NOT NULL,
+    priority                integer                NOT NULL,
+    version                 integer                NOT NULL,
+    file_name               character varying(255) NOT NULL,
+    sql                     text                   NOT NULL,
+    hash                    character varying(255) NOT NULL,
+
+    -- dates
+    created_at              timestamptz            NOT NULL DEFAULT now(),
+    updated_at              timestamptz            NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.migration_services_log
+    ADD CONSTRAINT migration_services_log_pk
+        UNIQUE (migration_services_name, priority, version, file_name);
+
+CREATE TRIGGER migration_services_log_updated_at_timestamp
+    BEFORE UPDATE
+    ON migration_services_log
+    FOR EACH ROW
+EXECUTE PROCEDURE trigger_set_timestamp();
+
+CREATE INDEX migration_services_log_hash_index
+    on migration_services_log (hash);
+COMMIT;
 `
 	_, err := r.db.Exec(ctx, query)
 
@@ -102,5 +134,20 @@ COMMIT;
 		return errors.Wrapf(err, "query %s failed.", query)
 	}
 
+	return nil
+}
+
+// WriteMigrationServiceLog inserts row to migration_services_log
+func (r *Repository) WriteMigrationServiceLog(ctx context.Context, log dto.MigrationServicesLog) error {
+	const query = `INSERT INTO migration_services_log (migration_services_name, priority, version, file_name, "sql", hash) 
+		VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(migration_services_name, priority, version, file_name) DO UPDATE 
+		SET "sql"=$5, hash=$6`
+	_, err := r.db.Exec(ctx, query, log.MigrationServiceName, log.Priority, log.Version, log.FileName, log.SQL, log.Hash)
+
+	if err != nil {
+		return errors.Wrapf(err, "query %s failed, params: MigrationServiceName = %s, Priority = %d, "+
+			"Version = %d, FileName = %s, SQL = %s, Hash = %s", query, log.MigrationServiceName, log.Priority,
+			log.Version, log.FileName, log.SQL, log.Hash)
+	}
 	return nil
 }

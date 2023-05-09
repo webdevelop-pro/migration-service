@@ -3,14 +3,15 @@ package migration
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/logger"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
-
-	"github.com/pkg/errors"
+	"github.com/webdevelop-pro/migration-service/internal/app/dto"
 )
 
 // Set is a set of migrations for all services.
@@ -182,25 +183,35 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int
 	for _, ver := range versions {
 		for _, mig := range migrations[ver] {
 
-			for _, query := range mig.Queries {
-				err := s.repo.Exec(context.Background(), query)
+			err := s.repo.Exec(context.Background(), mig.Query)
 
-				if err != nil && !mig.AllowError {
-					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, query, mig.Path)
-				}
-
-				if curVersion < ver {
-					if err := s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
-						return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
-					}
-				}
-
-				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", query, name, ver, mig.Path)
+			if err != nil && !mig.AllowError {
+				return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, mig.Query, mig.Path)
 			}
 
-			lastVersion = ver
-			n++
+			if curVersion < ver {
+				if err = s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
+					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
+				}
+			}
+
+			sLog := dto.MigrationServicesLog{
+				MigrationServiceName: name,
+				Priority:             priority,
+				Version:              ver,
+				FileName:             filepath.Base(mig.Path),
+				SQL:                  mig.Query,
+				Hash:                 mig.Hash,
+			}
+			if err = s.repo.WriteMigrationServiceLog(context.Background(), sLog); err != nil {
+				return n, lastVersion, errors.Wrap(err, "cannot update migration_services_log")
+			}
+
+			s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", mig.Query, name, ver, mig.Path)
 		}
+
+		lastVersion = ver
+		n++
 	}
 
 	return n, lastVersion, nil
@@ -227,11 +238,9 @@ func (s *Set) GetSQL(name string, priority, minVersion int) (sql string, err err
 
 	for _, ver := range versions {
 		for _, mig := range migrations[ver] {
-			for _, query := range mig.Queries {
-				sql += "\n" + strings.TrimSpace(query)
-				if sql[len(sql)-1:] != ";" {
-					sql += ";"
-				}
+			sql += "\n" + strings.TrimSpace(mig.Query)
+			if sql[len(sql)-1:] != ";" {
+				sql += ";"
 			}
 		}
 	}
