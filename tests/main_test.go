@@ -31,9 +31,9 @@ func testInit() (logger.Logger, *configurator.Configurator, *postgres.Repository
 	if err != nil {
 		_log.Fatal().Err(err).Msg("can't drop table user_users from DB")
 	}
-	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_services_log")
+	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_service_logs")
 	if err != nil {
-		_log.Fatal().Err(err).Msg("can't drop table migration_services_log from DB")
+		_log.Fatal().Err(err).Msg("can't drop table migration_service_logs from DB")
 	}
 	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_services")
 	if err != nil {
@@ -269,7 +269,7 @@ func TestFakeApply(t *testing.T) {
 	checkNullValueResults(t, rawPG, _log, "user_users", "name", 1)
 }
 
-// TestMigrationLog checks writing logs to migration_services_log table
+// TestMigrationLog checks writing logs to migration_service_logs table
 func TestMigrationLog(t *testing.T) {
 	// we will create new migrations for user_user service and verify
 	// if all records was written to migration_service_log
@@ -281,6 +281,6 @@ func TestMigrationLog(t *testing.T) {
 		_log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
 	checkResultsByService(t, rawPG, _log, "user_users", 3)
-	checkRecordsCount(t, rawPG, _log, "migration_services_log", 3)
-	checkValueResults(t, rawPG, _log, "03_add_bitint.sql", "migration_services_log", "file_name", 3)
+	checkRecordsCount(t, rawPG, _log, "migration_service_logs", 3)
+	checkValueResults(t, rawPG, _log, "03_add_bitint.sql", "migration_service_logs", "file_name", 3)
 }

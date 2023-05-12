@@ -4,7 +4,7 @@
 ## Structure
 All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
-In order to work properly migration service require `migration_services` and `migration_services_log` tables to be created first:
+In order to work properly migration service require `migration_services` and `migration_service_logs` tables to be created first:
 ```sh
 set -a && source .dev.env && go run cmd/server/main.go --init
 ```

@@ -97,7 +97,7 @@ CREATE OR REPLACE TRIGGER set_timestamp_migration_services
   EXECUTE PROCEDURE update_at_set_timestamp();
 COMMIT;
 
-CREATE TABLE IF NOT EXISTS migration_services_log
+CREATE TABLE IF NOT EXISTS migration_service_logs
 (
     id                      SERIAL PRIMARY KEY,
 
@@ -114,19 +114,19 @@ CREATE TABLE IF NOT EXISTS migration_services_log
     updated_at              timestamptz            NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.migration_services_log DROP CONSTRAINT IF EXISTS migration_services_log_pk;
-ALTER TABLE public.migration_services_log
-    ADD CONSTRAINT migration_services_log_pk
+ALTER TABLE public.migration_service_logs DROP CONSTRAINT IF EXISTS migration_service_logs_pk;
+ALTER TABLE public.migration_service_logs
+    ADD CONSTRAINT migration_service_logs_pk
         UNIQUE (migration_services_name, priority, version, file_name);
 
-CREATE OR REPLACE TRIGGER migration_services_log_updated_at_timestamp
+CREATE OR REPLACE TRIGGER migration_service_logs_updated_at_timestamp
     BEFORE UPDATE
-    ON migration_services_log
+    ON migration_service_logs
     FOR EACH ROW
 EXECUTE PROCEDURE update_at_set_timestamp();
 
-CREATE INDEX IF NOT EXISTS migration_services_log_hash_index
-    on migration_services_log (hash);
+CREATE INDEX IF NOT EXISTS migration_service_logs_hash_index
+    on migration_service_logs (hash);
 COMMIT;
 `
 	_, err := r.db.Exec(ctx, query)
@@ -138,9 +138,9 @@ COMMIT;
 	return nil
 }
 
-// WriteMigrationServiceLog inserts row to migration_services_log
+// WriteMigrationServiceLog inserts row to migration_service_logs
 func (r *Repository) WriteMigrationServiceLog(ctx context.Context, log migration_log.MigrationServicesLog) error {
-	const query = `INSERT INTO migration_services_log (migration_services_name, priority, version, file_name, "sql", hash) 
+	const query = `INSERT INTO migration_service_logs (migration_services_name, priority, version, file_name, "sql", hash) 
 		VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(migration_services_name, priority, version, file_name) DO UPDATE 
 		SET "sql"=$5, hash=$6`
 	_, err := r.db.Exec(ctx, query, log.MigrationServiceName, log.Priority, log.Version, log.FileName, log.SQL, log.Hash)

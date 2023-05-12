@@ -204,7 +204,7 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int
 				Hash:                 mig.Hash,
 			}
 			if err = s.repo.WriteMigrationServiceLog(context.Background(), sLog); err != nil {
-				return n, lastVersion, errors.Wrap(err, "cannot update migration_services_log")
+				return n, lastVersion, errors.Wrap(err, "cannot update migration_service_logs")
 			}
 
 			s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", mig.Query, name, ver, mig.Path)
