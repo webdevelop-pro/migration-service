@@ -5,13 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-<<<<<<< HEAD
 	"github.com/webdevelop-pro/lib/configurator"
-=======
-	"github.com/webdevelop-pro/go-common/configurator"
-	"github.com/webdevelop-pro/go-common/server"
-
->>>>>>> 67d50a1 (added simple http server)
 	"github.com/webdevelop-pro/lib/logger"
 	"github.com/webdevelop-pro/lib/server"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
@@ -124,8 +118,6 @@ func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator
 		log := logger.NewComponentLogger("RunMigrations", nil)
 		log.Error().Err(err).Msg("error during migrations")
 	}
-
-	// sd.Shutdown()
 }
 
 func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, serviceName string) {
