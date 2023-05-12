@@ -65,6 +65,13 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	finalSql := flag.String("final-sql", "", "if provided - program return final SQL for migrations without applying it. Argument = service name")
 	force := flag.Bool("force", false, "force apply migration without version checking. Accept files or dir paths. Will not update service version if applied version is lower, then already applied")
 	skip := flag.Bool("fake", false, "fake do not apply any migration but mark according migrations in migration_services table as completed")
+<<<<<<< HEAD
+=======
+	check := flag.Bool("check", false, "check verifies if all hashes of migrations are equal to those in migration table. If no - returns list of files with migrations, that have differences. Can accept files or dirs of migrations as arguments")
+	checkApply := flag.Bool("check-apply", false, "check-apply compares hashes of all migrations with hashes in DB and try to apply those, that have differences. Can accept files or dirs of migrations as arguments")
+	applyOnly := flag.Bool("apply-only", false, "apply and shutdown migration service, do not start web service")
+
+>>>>>>> af9e3cb (added http server and regex filter for envs)
 	flag.Parse()
 
 	if *init {
@@ -87,8 +94,13 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	}
 
 	RunMigrations(sd, _app, c)
-	// Run server
-	RunHttpServer(lc, srv)
+
+	if *applyOnly == false {
+		// Run server
+		RunHttpServer(lc, srv)
+	} else {
+		sd.Shutdown()
+	}
 }
 
 func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator) {
@@ -97,8 +109,6 @@ func RunMigrations(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator
 		log := logger.NewComponentLogger("RunMigrations", nil)
 		log.Error().Err(err).Msg("error during migrations")
 	}
-
-	// sd.Shutdown()
 }
 
 func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, serviceName string) {

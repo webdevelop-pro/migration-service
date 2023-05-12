@@ -6,8 +6,8 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
-	"github.com/webdevelop-pro/go-common/configurator"
-	"github.com/webdevelop-pro/go-common/db"
+	"github.com/webdevelop-pro/lib/configurator"
+	"github.com/webdevelop-pro/lib/db"
 	"github.com/webdevelop-pro/migration-service/internal/domain/migration_log"
 )
 
