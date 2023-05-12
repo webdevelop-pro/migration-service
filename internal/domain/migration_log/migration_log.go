@@ -1,4 +1,4 @@
-package dto
+package migration_log
 
 type MigrationServicesLog struct {
 	MigrationServiceName string

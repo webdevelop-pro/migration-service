@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/db"
-	"github.com/webdevelop-pro/migration-service/internal/app/dto"
+	"github.com/webdevelop-pro/migration-service/internal/domain/migration_log"
 )
 
 const NO_TABLE_CODE = "42P01"
@@ -139,7 +139,7 @@ COMMIT;
 }
 
 // WriteMigrationServiceLog inserts row to migration_services_log
-func (r *Repository) WriteMigrationServiceLog(ctx context.Context, log dto.MigrationServicesLog) error {
+func (r *Repository) WriteMigrationServiceLog(ctx context.Context, log migration_log.MigrationServicesLog) error {
 	const query = `INSERT INTO migration_services_log (migration_services_name, priority, version, file_name, "sql", hash) 
 		VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(migration_services_name, priority, version, file_name) DO UPDATE 
 		SET "sql"=$5, hash=$6`

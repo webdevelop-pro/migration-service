@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/logger"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
-	"github.com/webdevelop-pro/migration-service/internal/app/dto"
+	"github.com/webdevelop-pro/migration-service/internal/domain/migration_log"
 )
 
 // Set is a set of migrations for all services.
@@ -195,7 +195,7 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int
 				}
 			}
 
-			sLog := dto.MigrationServicesLog{
+			sLog := migration_log.MigrationServicesLog{
 				MigrationServiceName: name,
 				Priority:             priority,
 				Version:              ver,

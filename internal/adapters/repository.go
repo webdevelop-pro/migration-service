@@ -3,7 +3,7 @@ package adapters
 import (
 	"context"
 
-	"github.com/webdevelop-pro/migration-service/internal/app/dto"
+	"github.com/webdevelop-pro/migration-service/internal/domain/migration_log"
 )
 
 type Repository interface {
@@ -11,5 +11,5 @@ type Repository interface {
 	UpdateServiceVersion(ctx context.Context, name string, ver int) error
 	CreateMigrationTable(ctx context.Context) error
 	Exec(ctx context.Context, sql string, arguments ...interface{}) error
-	WriteMigrationServiceLog(ctx context.Context, log dto.MigrationServicesLog) error
+	WriteMigrationServiceLog(ctx context.Context, log migration_log.MigrationServicesLog) error
 }
