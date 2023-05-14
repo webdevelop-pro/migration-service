@@ -4,30 +4,7 @@
 ## Structure
 All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
-In order to work properly migration service require `migration_services` table to be created first
-```sql
-CREATE TABLE IF NOT EXISTS migration_services (
-    id serial NOT NULL PRIMARY KEY,
-    name varchar NOT NULL UNIQUE,
-    version int NOT NULL DEFAULT 0,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone NOT NULL DEFAULT NOW()
-    );
-CREATE OR REPLACE FUNCTION update_at_set_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE TRIGGER set_timestamp_migration_services
-    BEFORE UPDATE ON migration_services
-    FOR EACH ROW
-    EXECUTE PROCEDURE update_at_set_timestamp();
-COMMIT;
-```
-or execute 
+In order to work properly migration service require `migration_services` and `migration_service_logs` tables to be created first:
 ```sh
 set -a && source .dev.env && go run cmd/server/main.go --init
 ```
@@ -35,7 +12,7 @@ set -a && source .dev.env && go run cmd/server/main.go --init
 
 ## File structure
 Every file represented by `.sql` standard which parameters in the first comment.
-```sql
+```
 - migrations/
 - migrations/<PROIRITY>_<service_name>                        --- We set up priority and service name 
 - migrations/<PROIRITY>_<service_name>/<VERSION>_<TITLE>.sql  --- We set up migration version and short description
