@@ -15,11 +15,6 @@ import (
 	"github.com/webdevelop-pro/migration-service/internal/domain/migration"
 )
 
-type sqlFiles struct {
-	filename string
-	sql      string
-}
-
 func testInit() (logger.Logger, *configurator.Configurator, *postgres.Repository, *app.App, *db.DB, context.Context) {
 	_log := logger.NewDefault()
 	c := configurator.New()
@@ -35,6 +30,10 @@ func testInit() (logger.Logger, *configurator.Configurator, *postgres.Repository
 	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS user_users")
 	if err != nil {
 		_log.Fatal().Err(err).Msg("can't drop table user_users from DB")
+	}
+	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_service_logs")
+	if err != nil {
+		_log.Fatal().Err(err).Msg("can't drop table migration_service_logs from DB")
 	}
 	_, err = rawPG.Exec(context.Background(), "DROP TABLE IF EXISTS migration_services")
 	if err != nil {
@@ -102,6 +101,20 @@ func checkNullValueResults(t *testing.T, rawPG *db.DB, log logger.Logger, tableN
 	}
 }
 
+func checkRecordsCount(t *testing.T, rawPG *db.DB, log logger.Logger, tableName string, expVal int) {
+	ctx := context.Background()
+	val := -1
+	query := fmt.Sprintf("SELECT count(*) FROM %s", tableName)
+	if err := rawPG.QueryRow(ctx, query).Scan(&val); err != nil {
+		log.Fatal().Err(err).Msgf("cannot get rows count from %s", tableName)
+		t.Error()
+	}
+	if val != expVal {
+		log.Fatal().Msgf("rows count didn't match %d!=%d", val, expVal)
+		t.Error()
+	}
+}
+
 // TestIgnoreNonSQLFiles checks if only *.sql files are applied
 func TestIgnoreNonSQLFiles(t *testing.T) {
 	_log, _, pg, _migration, rawPG, ctx := testInit()
@@ -147,11 +160,10 @@ func TestAllowError(t *testing.T) {
 	// we will create new migration for email service
 	// and verify if migration will be applied in correct order
 	// first user and then migration
-	mig := migration.NewMigration([]string{`--
+	mig := migration.NewMigration(`--
 	-- --   allow_error: true  
 	--
-	THIS IS SQL WITH AN ERROR`,
-	}, "./migration")
+	THIS IS SQL WITH AN ERROR`, "./migration")
 
 	if mig.AllowError != true {
 		log.Error().Msg("allow error should be true")
@@ -255,4 +267,20 @@ func TestFakeApply(t *testing.T) {
 	checkResultsByService(t, rawPG, _log, "user_users", 1)
 	checkResultsByService(t, rawPG, _log, "user_users_seeds", 2)
 	checkNullValueResults(t, rawPG, _log, "user_users", "name", 1)
+}
+
+// TestMigrationLog checks writing logs to migration_service_logs table
+func TestMigrationLog(t *testing.T) {
+	// we will create new migrations for user_user service and verify
+	// if all records was written to migration_service_log
+	_log, _, _, _migration, rawPG, _ := testInit()
+	_log.Debug().Msg("trying to apply migrations")
+
+	// apply migrations
+	if err := _migration.ApplyAll("./migrations/TestMigrationLog"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+	checkResultsByService(t, rawPG, _log, "user_users", 3)
+	checkRecordsCount(t, rawPG, _log, "migration_service_logs", 3)
+	checkValueResults(t, rawPG, _log, "03_add_bitint.sql", "migration_service_logs", "file_name", 3)
 }
