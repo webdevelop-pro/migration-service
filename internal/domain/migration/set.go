@@ -3,11 +3,8 @@ package migration
 import (
 	"context"
 	"fmt"
-<<<<<<< HEAD
 	"path/filepath"
-=======
 	"regexp"
->>>>>>> 2fc2786 (added http server and regex filter for envs)
 	"sort"
 	"strings"
 	"sync"
@@ -165,7 +162,7 @@ func (s *Set) serviceMigrations(name string, priority, minVersion int) map[int][
 }
 
 // Apply applies migrations for specified service with version > minVersion.
-func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int, error) {
+func (s *Set) Apply(name string, priority, minVersion, curVersion int, envName string) (int, int, error) {
 	migrations := s.serviceMigrations(name, priority, minVersion)
 
 	var n, lastVersion int
@@ -187,21 +184,25 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int
 	for _, ver := range versions {
 		for _, mig := range migrations[ver] {
 
-			for _, query := range mig.Queries {
-				var err error
-				if mig.EnvRegex != "" {
-					regexRes, err := regexp.MatchString(mig.EnvRegex, s.cfg.EnvName)
-					if regexRes && err == nil {
-						err = s.repo.Exec(context.Background(), query)
-					}
+			var err error
+			if mig.EnvRegex != "" {
+				doMatch := true
+				if mig.EnvRegex[0] == '!' {
+					doMatch = false
+					mig.EnvRegex = mig.EnvRegex[1:len(mig.EnvRegex)]
 				}
+				regexRes, err := regexp.MatchString(mig.EnvRegex, envName)
+				if regexRes == doMatch && err == nil {
+					err = s.repo.Exec(context.Background(), mig.Query)
+				}
+			}
 
-				if err != nil {
-					s.log.Error().Msgf("not executed query: \n%s\n for %s, version: %d, file: %s", query, name, ver, mig.Path)
-					if !mig.AllowError {
-						return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, query, mig.Path)
-					}
+			if err != nil {
+				s.log.Error().Msgf("not executed query: \n%s\n for %s, version: %d, file: %s", mig.Query, name, ver, mig.Path)
+				if !mig.AllowError {
+					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, mig.Query, mig.Path)
 				}
+			}
 
 			if curVersion < ver {
 				if err = s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
@@ -232,7 +233,7 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int
 }
 
 // GetSQL returns SQL statement for specified service with version > minVersion.
-func (s *Set) GetSQL(name string, priority, minVersion int) (sql string, err error) {
+func (s *Set) GetSQL(name string, priority int, minVersion int) (sql string, err error) {
 	migrations := s.serviceMigrations(name, priority, minVersion)
 
 	if len(migrations) == 0 {

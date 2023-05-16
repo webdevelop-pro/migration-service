@@ -284,3 +284,19 @@ func TestMigrationLog(t *testing.T) {
 	checkRecordsCount(t, rawPG, _log, "migration_service_logs", 3)
 	checkValueResults(t, rawPG, _log, "03_add_bitint.sql", "migration_service_logs", "file_name", 3)
 }
+
+// TestMigrationLog checks writing logs to migration_service_logs table
+func TestRequiredEnv(t *testing.T) {
+	// we will create new migrations for user_user service and verify
+	// if all records was written to migration_service_log
+	_log, _, _, _migration, rawPG, _ := testInit()
+	_log.Debug().Msg("checking required env comment")
+
+	// apply migrations
+	if err := _migration.ApplyAll("./migrations/RequireEnv"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+	checkResultsByService(t, rawPG, _log, "user_users", 0)
+	checkRecordsCount(t, rawPG, _log, "migration_service_logs", 0)
+	checkValueResults(t, rawPG, _log, "01_user_users.sql", "migration_service_logs", "file_name", 2)
+}

@@ -24,6 +24,7 @@ func New(c *configurator.Configurator, repo adapters.Repository) *App {
 	return &App{
 		log:  logger.NewComponentLogger(pkgName, nil),
 		repo: repo,
+		cfg:  cfg,
 		set:  migration.New(repo),
 	}
 }
@@ -54,7 +55,7 @@ func (a *App) Apply(ctx context.Context, serviceName string) (int, error) {
 		return 0, errors.Wrap(err, "failed to get current service version")
 	}
 
-	n, lastVersion, err := a.set.Apply(serviceName, -1, ver, ver)
+	n, lastVersion, err := a.set.Apply(serviceName, -1, ver, ver, a.cfg.EnvName)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to apply migrations")
 	}
