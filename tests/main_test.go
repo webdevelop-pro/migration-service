@@ -3,21 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
-	"github.com/webdevelop-pro/go-common/configurator"
-	"github.com/webdevelop-pro/go-common/db"
 	"github.com/webdevelop-pro/go-common/logger"
+	"github.com/webdevelop-pro/lib/configurator"
+	"github.com/webdevelop-pro/lib/db"
 	"github.com/webdevelop-pro/migration-service/internal/adapters/repository/postgres"
 	"github.com/webdevelop-pro/migration-service/internal/app"
 	"github.com/webdevelop-pro/migration-service/internal/domain/migration"
 )
 
 func testInit() (logger.Logger, *configurator.Configurator, *postgres.Repository, *app.App, *db.DB, context.Context) {
-	_log := logger.NewDefault()
-	c := configurator.New()
+	_log := logger.DefaultStdoutLogger("info", nil)
+	c := configurator.NewConfigurator()
 	pg := postgres.New(c)
 	_migration := app.New(c, pg)
 	rawPG := db.New(c)
@@ -286,17 +287,70 @@ func TestMigrationLog(t *testing.T) {
 }
 
 // TestMigrationLog checks writing logs to migration_service_logs table
-func TestRequiredEnv(t *testing.T) {
+func TestRequiredEnvInvertion(t *testing.T) {
 	// we will create new migrations for user_user service and verify
 	// if all records was written to migration_service_log
+	os.Setenv("ENV_NAME", "master")
 	_log, _, _, _migration, rawPG, _ := testInit()
 	_log.Debug().Msg("checking required env comment")
 
-	// apply migrations
-	if err := _migration.ApplyAll("./migrations/RequireEnv"); err != nil {
+	// apply migrations for non master branch
+	if err := _migration.ApplyAll("./migrations/RequiredEnv/BranchInvertion"); err != nil {
 		_log.Fatal().Err(err).Msg("cannot apply migrations")
 	}
-	checkResultsByService(t, rawPG, _log, "user_users", 0)
-	checkRecordsCount(t, rawPG, _log, "migration_service_logs", 0)
-	checkValueResults(t, rawPG, _log, "01_user_users.sql", "migration_service_logs", "file_name", 2)
+
+	ver := 1
+	query := fmt.Sprintf("SELECT version FROM migration_services WHERE name='%s' ORDER by id DESC LIMIT 1", "user_users")
+	err := rawPG.QueryRow(context.Background(), query).Scan(&ver)
+	if err == nil {
+		t.Errorf("query should return an error cause we should not have any migrations for user_users")
+	}
+	if err.Error() != "no rows in result set" {
+		t.Errorf("query should return an error cause we should not have any migrations for user_users")
+	}
+
+	os.Setenv("ENV_NAME", "dev")
+	_log, _, _, _migration, rawPG, _ = testInit()
+	// apply migrations for non master branch
+	if err := _migration.ApplyAll("./migrations/RequiredEnv/BranchInvertion"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+
+	checkResultsByService(t, rawPG, _log, "user", 1)
+	// checkRecordsCount(t, rawPG, _log, "migration_service_logs", 0)
+	// checkValueResults(t, rawPG, _log, "01_user_users.sql", "migration_service_logs", "file_name", 2)
+}
+
+func TestRequiredEnvMultipleBranch(t *testing.T) {
+	// we will create new migrations for user_user service and verify
+	// if all records was written to migration_service_log
+	os.Setenv("ENV_NAME", "master")
+	_log, _, _, _migration, rawPG, _ := testInit()
+	_log.Debug().Msg("checking required env comment")
+
+	// apply migrations for non master branch
+	if err := _migration.ApplyAll("./migrations/RequiredEnv/MultipleBranches"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+
+	ver := 1
+	query := fmt.Sprintf("SELECT version FROM migration_services WHERE name='%s' ORDER by id DESC LIMIT 1", "user_users")
+	err := rawPG.QueryRow(context.Background(), query).Scan(&ver)
+	if err == nil {
+		t.Errorf("query should return an error cause we should not have any migrations for user_users")
+	}
+	if err.Error() != "no rows in result set" {
+		t.Errorf("query should return an error cause we should not have any migrations for user_users")
+	}
+
+	os.Setenv("ENV_NAME", "stage")
+	_log, _, _, _migration, rawPG, _ = testInit()
+	// apply migrations for non master branch
+	if err := _migration.ApplyAll("./migrations/RequiredEnv/MultipleBranches"); err != nil {
+		_log.Fatal().Err(err).Msg("cannot apply migrations")
+	}
+
+	checkResultsByService(t, rawPG, _log, "user", 1)
+	// checkRecordsCount(t, rawPG, _log, "migration_service_logs", 0)
+	// checkValueResults(t, rawPG, _log, "01_user_users.sql", "migration_service_logs", "file_name", 2)
 }

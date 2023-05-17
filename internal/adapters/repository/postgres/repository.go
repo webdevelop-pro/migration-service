@@ -92,7 +92,6 @@ CREATE OR REPLACE TRIGGER set_timestamp_migration_services
   BEFORE UPDATE ON migration_services
   FOR EACH ROW
   EXECUTE PROCEDURE update_at_set_timestamp();
-COMMIT;
 
 CREATE TABLE IF NOT EXISTS migration_service_logs
 (
@@ -124,7 +123,6 @@ EXECUTE PROCEDURE update_at_set_timestamp();
 
 CREATE INDEX IF NOT EXISTS migration_service_logs_hash_index
     on migration_service_logs (hash);
-COMMIT;
 `
 	_, err := r.db.Exec(ctx, query)
 

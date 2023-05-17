@@ -8,7 +8,6 @@ replace github.com/webdevelop-pro/go-logger => ./pkg/logger
 
 require (
 	github.com/jackc/pgconn v1.12.1
-	github.com/jackc/pgx/v4 v4.0.0-pre1.0.20190824185557-6972a5742186
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/pkg/errors v0.9.1

@@ -176,7 +176,6 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int, envName s
 
 	for ver := range migrations {
 		versions[i] = ver
-
 		i++
 	}
 	sort.Ints(versions)
@@ -185,16 +184,22 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int, envName s
 		for _, mig := range migrations[ver] {
 
 			var err error
+			var regexRes bool
 			if mig.EnvRegex != "" {
 				doMatch := true
 				if mig.EnvRegex[0] == '!' {
 					doMatch = false
 					mig.EnvRegex = mig.EnvRegex[1:len(mig.EnvRegex)]
 				}
-				regexRes, err := regexp.MatchString(mig.EnvRegex, envName)
+				regexRes, err = regexp.MatchString(mig.EnvRegex, envName)
 				if regexRes == doMatch && err == nil {
 					err = s.repo.Exec(context.Background(), mig.Query)
+				} else {
+					s.log.Debug().Msgf("do not match selection with required_env: %s and %s", mig.EnvRegex, envName)
+					continue
 				}
+			} else {
+				err = s.repo.Exec(context.Background(), mig.Query)
 			}
 
 			if err != nil {
@@ -264,7 +269,7 @@ func (s *Set) GetSQL(name string, priority int, minVersion int) (sql string, err
 }
 
 // ApplyAll applies all migrations for all services.
-func (s *Set) ApplyAll(skipVersionCheck bool) (int, error) {
+func (s *Set) ApplyAll(skipVersionCheck bool, envVersion string) (int, error) {
 	var (
 		n, ver, minVersion, curVersion int
 		err                            error
@@ -287,7 +292,7 @@ func (s *Set) ApplyAll(skipVersionCheck bool) (int, error) {
 				minVersion = curVersion
 			}
 
-			num, lastVersion, err := s.Apply(service, priority, minVersion, curVersion)
+			num, lastVersion, err := s.Apply(service, priority, minVersion, curVersion, envVersion)
 			if err != nil {
 				s.log.Error().Err(err).Msgf("failed to apply migrations for %s", service)
 				return n, fmt.Errorf("failed to apply migrations for %s", service)

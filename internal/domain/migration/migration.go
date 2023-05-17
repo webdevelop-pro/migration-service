@@ -46,8 +46,8 @@ func NewMigration(query string, path string) Migration {
 						mig.AllowError = true
 						break
 					}
-				} else if vals[0] == "require_env" {
-					mig.EnvRegex = vals[0]
+				} else if vals[0] == "required_env" {
+					mig.EnvRegex = strings.Trim(vals[1], " ")
 					break
 				}
 			}

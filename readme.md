@@ -21,13 +21,13 @@ Every file represented by `.sql` standard which parameters in the first comment.
 __Example__:
 ```sql
 --- allow_error: false 
-CREATE TABLE user_users(id serial primary key);
 CREATE TABLE migration_services (
   id serial NOT NULL PRIMARY KEY,
   name varchar NOT NULL UNIQUE,
   version int NOT NULL DEFAULT 0,
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE user_users(id serial primary key);
 ```
 
 ## Usage example

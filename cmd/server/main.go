@@ -65,13 +65,10 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	finalSql := flag.String("final-sql", "", "if provided - program return final SQL for migrations without applying it. Argument = service name")
 	force := flag.Bool("force", false, "force apply migration without version checking. Accept files or dir paths. Will not update service version if applied version is lower, then already applied")
 	skip := flag.Bool("fake", false, "fake do not apply any migration but mark according migrations in migration_services table as completed")
-<<<<<<< HEAD
-=======
 	check := flag.Bool("check", false, "check verifies if all hashes of migrations are equal to those in migration table. If no - returns list of files with migrations, that have differences. Can accept files or dirs of migrations as arguments")
 	checkApply := flag.Bool("check-apply", false, "check-apply compares hashes of all migrations with hashes in DB and try to apply those, that have differences. Can accept files or dirs of migrations as arguments")
 	applyOnly := flag.Bool("apply-only", false, "apply and shutdown migration service, do not start web service")
 
->>>>>>> af9e3cb (added http server and regex filter for envs)
 	flag.Parse()
 
 	if *init {
@@ -86,6 +83,16 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	if *skip {
 		args := flag.Args()
 		RunFakeApply(sd, _app, args)
+		return
+	}
+	if *check {
+		args := flag.Args()
+		RunCheck(sd, _app, args, c)
+		return
+	}
+	if *checkApply {
+		args := flag.Args()
+		RunCheckApply(sd, _app, args, c)
 		return
 	}
 	if *finalSql != "" {
@@ -149,5 +156,32 @@ func RunFakeApply(sd fx.Shutdowner, _app *app.App, args []string) {
 		log.Error().Err(err).Msg("error during skip migrations")
 	}
 	log.Info().Msg("successfully skipped and marked as finished")
+	sd.Shutdown()
+}
+
+func RunCheck(sd fx.Shutdowner, _app *app.App, args []string, c *configurator.Configurator) {
+	cfg := c.New("migration", &app.Config{}, "migration").(*app.Config)
+	if len(args) == 0 {
+		args = append(args, cfg.Dir)
+	}
+	_, _, err := _app.CheckMigrationHash(args)
+	log := logger.NewComponentLogger("RunCheck", nil)
+	if err != nil {
+		log.Error().Err(err).Msg("error during checking migrations")
+	}
+	sd.Shutdown()
+}
+
+func RunCheckApply(sd fx.Shutdowner, _app *app.App, args []string, c *configurator.Configurator) {
+	cfg := c.New("migration", &app.Config{}, "migration").(*app.Config)
+	if len(args) == 0 {
+		args = append(args, cfg.Dir)
+	}
+	err := _app.CheckAndApplyMigrations(args)
+	log := logger.NewComponentLogger("RunCheckApply", nil)
+	if err != nil {
+		log.Error().Err(err).Msg("error during checking and applying migrations")
+	}
+
 	sd.Shutdown()
 }
