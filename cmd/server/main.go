@@ -5,9 +5,9 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/webdevelop-pro/go-common/configurator"
-	"github.com/webdevelop-pro/go-common/server"
+	"github.com/webdevelop-pro/lib/configurator"
 	"github.com/webdevelop-pro/lib/logger"
+	"github.com/webdevelop-pro/lib/server"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
 	"github.com/webdevelop-pro/migration-service/internal/adapters/repository/postgres"
 	"github.com/webdevelop-pro/migration-service/internal/app"
@@ -24,7 +24,7 @@ func main() {
 		fx.Logger(log),
 		fx.Provide(
 			// Configurator
-			configurator.New,
+			configurator.NewConfigurator,
 			// Database connection
 			postgres.New,
 			// Bind DB with Repository interface
