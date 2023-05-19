@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -84,11 +85,28 @@ func Migrate(inputDir string, outputDir string) error {
 			if err != nil && err.Error() != fmt.Sprintf("mkdir %s: file exists", newPath) {
 				log.Fatal(err)
 			}
-			os.WriteFile(
-				fmt.Sprintf("%s/%d_%s.sql", newPath, m.Version, "auto_generated"),
-				[]byte(strings.Join(m.Queries, "; ")),
-				0644,
-			)
+
+			f, err := os.Create(path.Join(newPath, fmt.Sprintf("%d_%s.sql", m.Version, "auto_generated")))
+			if err != nil {
+				log.Fatal(fmt.Errorf("failed to create file for migration(%d) for %s: %w", m.Version, serviceSet.ServiceName, err))
+			}
+
+			for _, query := range m.Queries {
+				q := strings.TrimSpace(query)
+
+				if !strings.HasSuffix(q, ";") {
+					q = q + ";\n"
+				} else {
+					q = q + "\n"
+				}
+
+				_, err := f.WriteString(q)
+				if err != nil {
+					log.Fatal(fmt.Errorf("failed to write query to file for migration(%d) for %s: %w", m.Version, serviceSet.ServiceName, err))
+				}
+			}
+
+			f.Close()
 			// set.Add(serviceSet.ServiceName, priority, m.Version, m.ToMigration())
 		}
 
