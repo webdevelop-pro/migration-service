@@ -66,4 +66,23 @@ do not apply any migration but mark according migrations in `migration_services`
 set -a && source .dev.env && go run cmd/server/main.go --fake ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
 ```
 
+### --check
+Verifies if all hashes of migrations are equal to those in migration table. If no - returns list of files with migrations, that have differences. Can accept files or dirs of migrations as arguments
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check
+```
+
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
+```
+
+### --check-apply
+Compares hashes of all migrations with hashes in DB and try to apply those, that have differences. Can accept files or dirs of migrations as arguments
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check-apply
+```
+
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check-apply ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
+```
 

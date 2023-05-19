@@ -322,3 +322,35 @@ func (s *Set) FakeAll() (int, error) {
 
 	return n, nil
 }
+
+// CheckMigrationHash verifies if all hashes of migrations are equal to those in migration table
+func (s *Set) CheckMigrationHash() (allEqual bool, list []string, err error) {
+	var hash string
+
+	allEqual = true
+
+	for priority := range s.data {
+		for name, service := range s.data[priority] {
+			for ver, migrationList := range service {
+				for _, migration := range migrationList {
+					sLog := migration_log.MigrationServicesLog{
+						MigrationServiceName: name,
+						Priority:             priority,
+						Version:              ver,
+						FileName:             filepath.Base(migration.Path),
+					}
+					hash, err = s.repo.GetHashFromMigrationServiceLog(context.Background(), sLog)
+					if err != nil {
+						return false, nil, err
+					}
+					if hash != migration.Hash {
+						allEqual = false
+						list = append(list, migration.Path)
+					}
+				}
+			}
+		}
+	}
+
+	return
+}

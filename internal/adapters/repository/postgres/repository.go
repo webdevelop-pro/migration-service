@@ -149,3 +149,21 @@ func (r *Repository) WriteMigrationServiceLog(ctx context.Context, log migration
 	}
 	return nil
 }
+
+// GetHashFromMigrationServiceLog returns hash from migration_service_logs
+func (r *Repository) GetHashFromMigrationServiceLog(ctx context.Context, log migration_log.MigrationServicesLog) (string, error) {
+	var hash string
+	const query = `SELECT hash FROM migration_service_logs
+    	WHERE migration_services_name = $1 AND priority = $2 AND version = $3 AND file_name = $4`
+	err := r.db.QueryRow(ctx, query, log.MigrationServiceName, log.Priority, log.Version, log.FileName).Scan(&hash)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", errors.Wrapf(err, "query %s failed, params: MigrationServiceName = %s, Priority = %d, "+
+			"Version = %d, FileName = %s", query, log.MigrationServiceName, log.Priority,
+			log.Version, log.FileName)
+	}
+	return hash, nil
+}
