@@ -125,6 +125,56 @@ func (a *App) FakeApply(args []string) error {
 	return nil
 }
 
+func (a *App) CheckMigrationHash(args []string) (allEqual bool, list []string, err error) {
+	a.set.ClearData()
+	a.getMigrationDataFromAppArgs(args)
+	allEqual, list, err = a.set.CheckMigrationHash()
+	if err != nil {
+		a.log.Error().Err(err).Msg("failed to check migrations")
+		return
+	}
+
+	if allEqual {
+		a.log.Info().Msg("all hashes are equal")
+	} else {
+		str := fmt.Sprintf("%d migrations have differences:", len(list))
+		for _, v := range list {
+			str += "\n" + v
+		}
+		a.log.Warn().Msg(str)
+	}
+
+	return
+}
+
+func (a *App) CheckAndApplyMigrations(args []string) error {
+	a.set.ClearData()
+	a.getMigrationDataFromAppArgs(args)
+	allEqual, list, err := a.set.CheckMigrationHash()
+	if err != nil {
+		a.log.Error().Err(err).Msg("failed to check migrations while executing CheckAndApplyMigrations")
+		return err
+	}
+
+	if allEqual {
+		a.log.Info().Msg("all hashes are equal")
+	} else {
+		str := fmt.Sprintf("%d migrations have differences:", len(list))
+		for _, v := range list {
+			str += "\n" + v
+		}
+		str += "\nTrying apply migrations"
+		a.log.Warn().Msg(str)
+
+		err = a.ForceApply(list)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (a *App) getMigrationDataFromAppArgs(args []string) {
 	for _, path := range args {
 		pathInfo, err := os.Stat(path)
