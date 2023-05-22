@@ -14,7 +14,7 @@ type HttpServer struct {
 
 func NewHttpServer() HttpServer {
 	return HttpServer{
-		log: logger.NewDefaultComponent("api_handler"),
+		log: logger.NewComponentLogger("api_handler", nil),
 	}
 }
 

@@ -22,7 +22,7 @@ type App struct {
 
 func New(c *configurator.Configurator, repo adapters.Repository) *App {
 	return &App{
-		log:  logger.NewDefaultComponent(pkgName),
+		log:  logger.NewComponentLogger(pkgName, nil),
 		repo: repo,
 		set:  migration.New(repo),
 	}
