@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/db"
@@ -63,14 +63,11 @@ func (r *Repository) GetServiceVersion(ctx context.Context, name string) (int, e
 
 // Exec executes query
 func (r *Repository) Exec(ctx context.Context, sql string, arguments ...interface{}) error {
-	return r.db.BeginFunc(
-		ctx,
-		func(tx pgx.Tx) error {
-			_, err := tx.Exec(ctx, sql, arguments...)
+	return pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, sql, arguments...)
 
-			return err
-		},
-	)
+		return err
+	})
 }
 
 // CreateMigrationTable will create a migration table

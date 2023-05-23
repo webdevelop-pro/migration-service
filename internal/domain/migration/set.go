@@ -26,7 +26,7 @@ func New(repo adapters.Repository) *Set {
 	return &Set{
 		data: make(map[int]map[string]map[int][]Migration),
 		repo: repo,
-		log:  logger.NewDefaultComponent("migration"),
+		log:  logger.NewComponentLogger("migration", nil),
 	}
 }
 
