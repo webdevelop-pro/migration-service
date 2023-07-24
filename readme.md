@@ -18,9 +18,14 @@ Every file represented by `.sql` standard which parameters in the first comment.
 - migrations/<PROIRITY>_<service_name>/<VERSION>_<TITLE>.sql  --- We set up migration version and short description
 ```
 
+## In file configurations
+First line in every file can be pass configuration for the migration service.
+- `allow_error: true/false` - will define if service will fail or will continue working during SQL error
+- `required_env: [regex]` - will apply migrations only for specific git branch. Check `tests/migrations/RequiredEnv` files for more examples
+
 __Example__:
 ```sql
---- allow_error: false 
+--- allow_error: false, required_env: !master 
 CREATE TABLE migration_services (
   id serial NOT NULL PRIMARY KEY,
   name varchar NOT NULL UNIQUE,
