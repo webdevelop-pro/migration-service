@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.com/webdevelop-pro/lib/configurator"
+	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/lib/logger"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
 	"github.com/webdevelop-pro/migration-service/internal/domain/migration"

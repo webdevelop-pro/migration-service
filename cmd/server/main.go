@@ -4,10 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 
-	"github.com/webdevelop-pro/lib/configurator"
-	"github.com/webdevelop-pro/lib/logger"
+	"github.com/webdevelop-pro/go-common/configurator"
+	"github.com/webdevelop-pro/go-common/logger"
 	"github.com/webdevelop-pro/lib/server"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
 	"github.com/webdevelop-pro/migration-service/internal/adapters/repository/postgres"
@@ -57,6 +56,13 @@ func main() {
 	log.Info().Msg("done")
 }
 
+func errorToint(err error) int {
+	if err != nil {
+		return 1
+	}
+	return 0
+}
+
 func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx.Lifecycle, srv *server.HttpServer) {
 	init := flag.Bool("init", false, "initialize service by creating migration table at DB")
 	finalSql := flag.String("final-sql", "", "if provided - program return final SQL for migrations without applying it. Argument = service name")
@@ -98,18 +104,11 @@ func RunApp(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, lc fx
 	}
 
 	err := RunMigrations(sd, _app, c)
-
 	if *applyOnly == false {
 		// Run server
 		RunHttpServer(lc, srv)
 	} else {
-		if err != nil {
-			os.Exit(1)
-		}
-		os.Exit(0)
-		// ToDo
-		// understand how shutdown ExitCode option works ...
-		// sd.Shutdown()
+		sd.Shutdown(fx.ExitCode(errorToint(err)))
 	}
 	// Run server
 	RunHttpServer(lc, srv)
@@ -137,7 +136,7 @@ func GetFinalSQL(sd fx.Shutdowner, _app *app.App, c *configurator.Configurator, 
 		log.Error().Err(err).Msg("error during forming sql for migration")
 	}
 	fmt.Println(sql)
-	sd.Shutdown()
+	sd.Shutdown(fx.ExitCode(errorToint(err)))
 }
 
 func RunInit(sd fx.Shutdowner, _app *app.App) {
@@ -147,7 +146,7 @@ func RunInit(sd fx.Shutdowner, _app *app.App) {
 		log.Error().Err(err).Msg("error during creating migration table")
 	}
 	log.Info().Msg("successfully initialized")
-	sd.Shutdown()
+	sd.Shutdown(fx.ExitCode(errorToint(err)))
 }
 
 func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
@@ -157,7 +156,7 @@ func RunForceApply(sd fx.Shutdowner, _app *app.App, args []string) {
 		log.Error().Err(err).Msg("error during force apply migrations")
 	}
 	log.Info().Msg("successfully force applied")
-	sd.Shutdown()
+	sd.Shutdown(fx.ExitCode(errorToint(err)))
 }
 
 func RunFakeApply(sd fx.Shutdowner, _app *app.App, args []string) {
@@ -167,7 +166,7 @@ func RunFakeApply(sd fx.Shutdowner, _app *app.App, args []string) {
 		log.Error().Err(err).Msg("error during skip migrations")
 	}
 	log.Info().Msg("successfully skipped and marked as finished")
-	sd.Shutdown()
+	sd.Shutdown(fx.ExitCode(errorToint(err)))
 }
 
 func RunCheck(sd fx.Shutdowner, _app *app.App, args []string, c *configurator.Configurator) {
@@ -180,7 +179,7 @@ func RunCheck(sd fx.Shutdowner, _app *app.App, args []string, c *configurator.Co
 	if err != nil {
 		log.Error().Err(err).Msg("error during checking migrations")
 	}
-	sd.Shutdown()
+	sd.Shutdown(fx.ExitCode(errorToint(err)))
 }
 
 func RunCheckApply(sd fx.Shutdowner, _app *app.App, args []string, c *configurator.Configurator) {
@@ -194,5 +193,5 @@ func RunCheckApply(sd fx.Shutdowner, _app *app.App, args []string, c *configurat
 		log.Error().Err(err).Msg("error during checking and applying migrations")
 	}
 
-	sd.Shutdown()
+	sd.Shutdown(fx.ExitCode(errorToint(err)))
 }

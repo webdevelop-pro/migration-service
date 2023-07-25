@@ -1,4 +1,4 @@
-FROM golang:1.16.4-alpine3.13 as build
+FROM golang:1.20.6-alpine3.18 as build
 
 ARG RELEASE
 
@@ -10,7 +10,7 @@ ENV CGO_ENABLED=0 RELEASE=$RELEASE
 
 RUN ./make.sh build
 
-FROM alpine:3.13
+FROM alpine:3.18
 
 COPY --from=build /app/app /app
 

@@ -1,15 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
+	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/logger"
-	"github.com/webdevelop-pro/lib/configurator"
 	"github.com/webdevelop-pro/lib/db"
 	"github.com/webdevelop-pro/migration-service/internal/adapters/repository/postgres"
 	"github.com/webdevelop-pro/migration-service/internal/app"
@@ -353,4 +356,47 @@ func TestRequiredEnvMultipleBranch(t *testing.T) {
 	checkResultsByService(t, rawPG, _log, "user", 1)
 	// checkRecordsCount(t, rawPG, _log, "migration_service_logs", 0)
 	// checkValueResults(t, rawPG, _log, "01_user_users.sql", "migration_service_logs", "file_name", 2)
+}
+
+func TestExitCode(t *testing.T) {
+	// We will run migration with a bad sql
+	// to verify return code
+
+	_log := logger.DefaultStdoutLogger("info", nil)
+	cmd := exec.Command("go", "run", "cmd/server/main.go", "--apply-only")
+	cmd.Env = os.Environ()
+
+	file, err := os.Open("../.example.env")
+	if err != nil {
+		_log.Error().Err(err).Msg("cannot read default env file")
+		t.Fail()
+		return
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+
+	for {
+		line, _, err := reader.ReadLine()
+
+		if err == io.EOF {
+			break
+		}
+		sline := string(line)
+		// choose different migration dir
+		if len(sline) > 10 && sline[0:10] == "MIGRATION_" {
+			cmd.Env = append(cmd.Env, "MIGRATION_DIR=./tests/migrations/TestErrorCode")
+		} else {
+			cmd.Env = append(cmd.Env, string(line))
+		}
+	}
+
+	// The `Output` method executes the command and
+	// collects the output, returning its value
+	_, err = cmd.Output()
+	if err == nil {
+		_log.Error().Err(fmt.Errorf("migration should return an error code")).Msg("must had an error")
+		// if there was any error, print it here
+		t.Fail()
+	}
 }

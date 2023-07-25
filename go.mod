@@ -14,7 +14,7 @@ require (
 	github.com/rs/zerolog v1.27.0
 	github.com/webdevelop-pro/go-common v0.0.0-20230721175654-25c33f04e1d7
 	github.com/webdevelop-pro/lib v0.0.0-00010101000000-000000000000
-	go.uber.org/fx v1.17.1
+	go.uber.org/fx v1.20.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -48,9 +48,9 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/dig v1.14.1 // indirect
+	go.uber.org/dig v1.17.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.21.0 // indirect
+	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
