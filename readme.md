@@ -21,7 +21,7 @@ Every file represented by `.sql` standard which parameters in the first comment.
 ## In file configurations
 First line in every file can be pass configuration for the migration service.
 - `allow_error: true/false` - will define if service will fail or will continue working during SQL error
-- `required_env: [regex]` - will apply migrations only for specific git branch. Check [tests/migrations/RequiredEnv](./tests/migrations/RequiredEnv) files for more examples. Its been used in combination with ENV_NAME variable, check [TestRequiredEnvMultipleBranch](./tests/main_test.go#358) test for more info.
+- `required_env: [regex]` - will apply migrations only for specific git branch. Check [tests/migrations/RequiredEnv](./tests/migrations/RequiredEnv) files for more examples. Its been used in combination with ENV_NAME variable, check [TestRequiredEnvMultipleBranch](./tests/main_test.go#L357) test for more info. Useful to upload seeds and other temporary data for dev or stage envs but not for production.
 
 __Example__:
 ```sql

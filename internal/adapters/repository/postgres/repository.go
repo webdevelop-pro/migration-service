@@ -47,14 +47,17 @@ func (r *Repository) GetServiceVersion(ctx context.Context, name string) (int, e
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil
 		}
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == NO_TABLE_CODE {
-				if err := r.CreateMigrationTable(context.Background()); err != nil {
-					return 0, errors.Wrapf(err, "query %s failed, %s ", query, pgErr.Message)
-				}
-				return r.GetServiceVersion(ctx, name)
+		// ToDo: Research why
+		// reflect.TypeOf(err) return *pgconn.PgError
+		// but errors.As(err, &pgErr) return false ...
+		// if errors.As(err, &pgErr) {
+		// if pgErr.Code == NO_TABLE_CODE {
+		sErr := err.Error()
+		if len(sErr) > 45 && sErr[0:45] == "ERROR: relation \"migration_services\" does not" {
+			if err := r.CreateMigrationTable(context.Background()); err != nil {
+				return 0, errors.Wrapf(err, "query %s failed, %s ", query, pgErr.Message)
 			}
-			return 0, errors.Wrapf(err, "query %s failed, %s ", query, pgErr.Message)
+			return r.GetServiceVersion(ctx, name)
 		}
 		return 0, errors.Wrapf(err, "query %s failed, %s ", query, name)
 	}
