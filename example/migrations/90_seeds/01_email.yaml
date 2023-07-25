@@ -1,9 +1,0 @@
-service: email-worker_seeds
-migrations:
-- version: 2
-  queries:
-  - |
-    INSERT INTO email_emails
-      (recipient_email, recipient_name, sender_email, sender_name, subject, template)
-      VALUES
-      ('vladka+321@webdevelop.pro', 'vlad', 'manager@webdevelop.pro', 'vlad', 'test', 'welcome.pug');

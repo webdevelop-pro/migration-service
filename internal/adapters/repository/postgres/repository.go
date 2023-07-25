@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/configurator"
 	"github.com/webdevelop-pro/go-common/db"
+	"github.com/webdevelop-pro/migration-service/internal/domain/migration_log"
 )
 
 const NO_TABLE_CODE = "42P01"
@@ -91,7 +92,37 @@ CREATE OR REPLACE TRIGGER set_timestamp_migration_services
   BEFORE UPDATE ON migration_services
   FOR EACH ROW
   EXECUTE PROCEDURE update_at_set_timestamp();
-COMMIT;
+
+CREATE TABLE IF NOT EXISTS migration_service_logs
+(
+    id                      SERIAL PRIMARY KEY,
+
+    -- required
+    migration_services_name character varying(255) NOT NULL,
+    priority                integer                NOT NULL,
+    version                 integer                NOT NULL,
+    file_name               character varying(255) NOT NULL,
+    sql                     text                   NOT NULL,
+    hash                    character varying(255) NOT NULL,
+
+    -- dates
+    created_at              timestamptz            NOT NULL DEFAULT now(),
+    updated_at              timestamptz            NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.migration_service_logs DROP CONSTRAINT IF EXISTS migration_service_logs_pk;
+ALTER TABLE public.migration_service_logs
+    ADD CONSTRAINT migration_service_logs_pk
+        UNIQUE (migration_services_name, priority, version, file_name);
+
+CREATE OR REPLACE TRIGGER migration_service_logs_updated_at_timestamp
+    BEFORE UPDATE
+    ON migration_service_logs
+    FOR EACH ROW
+EXECUTE PROCEDURE update_at_set_timestamp();
+
+CREATE INDEX IF NOT EXISTS migration_service_logs_hash_index
+    on migration_service_logs (hash);
 `
 	_, err := r.db.Exec(ctx, query)
 
@@ -100,4 +131,37 @@ COMMIT;
 	}
 
 	return nil
+}
+
+// WriteMigrationServiceLog inserts row to migration_service_logs
+func (r *Repository) WriteMigrationServiceLog(ctx context.Context, log migration_log.MigrationServicesLog) error {
+	const query = `INSERT INTO migration_service_logs (migration_services_name, priority, version, file_name, "sql", hash) 
+		VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(migration_services_name, priority, version, file_name) DO UPDATE 
+		SET "sql"=$5, hash=$6`
+	_, err := r.db.Exec(ctx, query, log.MigrationServiceName, log.Priority, log.Version, log.FileName, log.SQL, log.Hash)
+
+	if err != nil {
+		return errors.Wrapf(err, "query %s failed, params: MigrationServiceName = %s, Priority = %d, "+
+			"Version = %d, FileName = %s, SQL = %s, Hash = %s", query, log.MigrationServiceName, log.Priority,
+			log.Version, log.FileName, log.SQL, log.Hash)
+	}
+	return nil
+}
+
+// GetHashFromMigrationServiceLog returns hash from migration_service_logs
+func (r *Repository) GetHashFromMigrationServiceLog(ctx context.Context, log migration_log.MigrationServicesLog) (string, error) {
+	var hash string
+	const query = `SELECT hash FROM migration_service_logs
+    	WHERE migration_services_name = $1 AND priority = $2 AND version = $3 AND file_name = $4`
+	err := r.db.QueryRow(ctx, query, log.MigrationServiceName, log.Priority, log.Version, log.FileName).Scan(&hash)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", errors.Wrapf(err, "query %s failed, params: MigrationServiceName = %s, Priority = %d, "+
+			"Version = %d, FileName = %s", query, log.MigrationServiceName, log.Priority,
+			log.Version, log.FileName)
+	}
+	return hash, nil
 }

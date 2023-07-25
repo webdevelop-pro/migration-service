@@ -4,30 +4,7 @@
 ## Structure
 All migrations files located in the `migrations/` folder.
 Migration service reads file one by one in alphabetical order and execute it one by one.
-In order to work properly migration service require `migration_services` table to be created first
-```sql
-CREATE TABLE IF NOT EXISTS migration_services (
-    id serial NOT NULL PRIMARY KEY,
-    name varchar NOT NULL UNIQUE,
-    version int NOT NULL DEFAULT 0,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone NOT NULL DEFAULT NOW()
-    );
-CREATE OR REPLACE FUNCTION update_at_set_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE TRIGGER set_timestamp_migration_services
-    BEFORE UPDATE ON migration_services
-    FOR EACH ROW
-    EXECUTE PROCEDURE update_at_set_timestamp();
-COMMIT;
-```
-or execute 
+In order to work properly migration service require `migration_services` and `migration_service_logs` tables to be created first:
 ```sh
 set -a && source .dev.env && go run cmd/server/main.go --init
 ```
@@ -35,22 +12,27 @@ set -a && source .dev.env && go run cmd/server/main.go --init
 
 ## File structure
 Every file represented by `.sql` standard which parameters in the first comment.
-```sql
+```
 - migrations/
 - migrations/<PROIRITY>_<service_name>                        --- We set up priority and service name 
 - migrations/<PROIRITY>_<service_name>/<VERSION>_<TITLE>.sql  --- We set up migration version and short description
 ```
 
+## In file configurations
+First line in every file can be pass configuration for the migration service.
+- `allow_error: true/false` - will define if service will fail or will continue working during SQL error
+- `required_env: [regex]` - will apply migrations only for specific git branch. Check [tests/migrations/RequiredEnv](./tests/migrations/RequiredEnv) files for more examples. Its been used in combination with ENV_NAME variable, check [TestRequiredEnvMultipleBranch](./tests/main_test.go#358) test for more info.
+
 __Example__:
 ```sql
---- allow_error: false 
-CREATE TABLE user_users(id serial primary key);
+--- allow_error: false, required_env: !master 
 CREATE TABLE migration_services (
   id serial NOT NULL PRIMARY KEY,
   name varchar NOT NULL UNIQUE,
   version int NOT NULL DEFAULT 0,
   created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE user_users(id serial primary key);
 ```
 
 ## Usage example
@@ -86,7 +68,26 @@ set -a && source .dev.env && go run cmd/server/main.go --force ./migrations/01_u
 ### --fake
 do not apply any migration but mark according migrations in `migration_services` table as completed. Can accept multiply files or dir paths
 ```sh 
-set -a && source .dev.env && go run cmd/server/main.go --skip ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
+set -a && source .dev.env && go run cmd/server/main.go --fake ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
 ```
 
+### --check
+Verifies if all hashes of migrations are equal to those in migration table. If no - returns list of files with migrations, that have differences. Can accept files or dirs of migrations as arguments
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check
+```
+
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
+```
+
+### --check-apply
+Compares hashes of all migrations with hashes in DB and try to apply those, that have differences. Can accept files or dirs of migrations as arguments
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check-apply
+```
+
+```sh 
+set -a && source .dev.env && go run cmd/server/main.go --check-apply ./migrations/01_user_user ./migrations/02_email_emails/02_add_id.sql
+```
 

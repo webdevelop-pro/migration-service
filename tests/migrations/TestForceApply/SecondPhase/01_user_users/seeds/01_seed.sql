@@ -1,0 +1,1 @@
+insert into user_users(id, name, phone) values(1, 'test_user', '+1 (555) 555-1234')

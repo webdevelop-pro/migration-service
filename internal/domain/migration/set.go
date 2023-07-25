@@ -3,14 +3,16 @@ package migration
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/webdevelop-pro/go-common/logger"
 	"github.com/webdevelop-pro/migration-service/internal/adapters"
-
-	"github.com/pkg/errors"
+	"github.com/webdevelop-pro/migration-service/internal/domain/migration_log"
 )
 
 // Set is a set of migrations for all services.
@@ -160,7 +162,7 @@ func (s *Set) serviceMigrations(name string, priority, minVersion int) map[int][
 }
 
 // Apply applies migrations for specified service with version > minVersion.
-func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int, error) {
+func (s *Set) Apply(name string, priority, minVersion, curVersion int, envName string) (int, int, error) {
 	migrations := s.serviceMigrations(name, priority, minVersion)
 
 	var n, lastVersion int
@@ -174,7 +176,6 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int
 
 	for ver := range migrations {
 		versions[i] = ver
-
 		i++
 	}
 	sort.Ints(versions)
@@ -182,32 +183,62 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int) (int, int
 	for _, ver := range versions {
 		for _, mig := range migrations[ver] {
 
-			for _, query := range mig.Queries {
-				err := s.repo.Exec(context.Background(), query)
-
-				if err != nil && !mig.AllowError {
-					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, query, mig.Path)
+			var err error
+			var regexRes bool
+			if mig.EnvRegex != "" {
+				doMatch := true
+				if mig.EnvRegex[0] == '!' {
+					doMatch = false
+					mig.EnvRegex = mig.EnvRegex[1:len(mig.EnvRegex)]
 				}
-
-				if curVersion < ver {
-					if err := s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
-						return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
-					}
+				regexRes, err = regexp.MatchString(mig.EnvRegex, envName)
+				if regexRes == doMatch && err == nil {
+					err = s.repo.Exec(context.Background(), mig.Query)
+				} else {
+					s.log.Debug().Msgf("do not match selection with required_env: %s and %s", mig.EnvRegex, envName)
+					continue
 				}
-
-				s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", query, name, ver, mig.Path)
+			} else {
+				err = s.repo.Exec(context.Background(), mig.Query)
 			}
 
-			lastVersion = ver
-			n++
+			if err != nil {
+				s.log.Error().Msgf("not executed query: \n%s\n for %s, version: %d, file: %s", mig.Query, name, ver, mig.Path)
+				if !mig.AllowError {
+					return n, lastVersion, errors.Wrapf(err, "migration(%d) query failed: %s, file: %s", ver, mig.Query, mig.Path)
+				}
+			}
+
+			if curVersion < ver {
+				if err = s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
+					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
+				}
+			}
+
+			sLog := migration_log.MigrationServicesLog{
+				MigrationServiceName: name,
+				Priority:             priority,
+				Version:              ver,
+				FileName:             filepath.Base(mig.Path),
+				SQL:                  mig.Query,
+				Hash:                 mig.Hash,
+			}
+			if err = s.repo.WriteMigrationServiceLog(context.Background(), sLog); err != nil {
+				return n, lastVersion, errors.Wrap(err, "cannot update migration_service_logs")
+			}
+
+			s.log.Info().Msgf("executed query \n%s\n for %s, version: %d, file: %s", mig.Query, name, ver, mig.Path)
 		}
+
+		lastVersion = ver
+		n++
 	}
 
 	return n, lastVersion, nil
 }
 
 // GetSQL returns SQL statement for specified service with version > minVersion.
-func (s *Set) GetSQL(name string, priority, minVersion int) (sql string, err error) {
+func (s *Set) GetSQL(name string, priority int, minVersion int) (sql string, err error) {
 	migrations := s.serviceMigrations(name, priority, minVersion)
 
 	if len(migrations) == 0 {
@@ -227,11 +258,9 @@ func (s *Set) GetSQL(name string, priority, minVersion int) (sql string, err err
 
 	for _, ver := range versions {
 		for _, mig := range migrations[ver] {
-			for _, query := range mig.Queries {
-				sql += "\n" + strings.TrimSpace(query)
-				if sql[len(sql)-1:] != ";" {
-					sql += ";"
-				}
+			sql += "\n" + strings.TrimSpace(mig.Query)
+			if sql[len(sql)-1:] != ";" {
+				sql += ";"
 			}
 		}
 	}
@@ -240,7 +269,7 @@ func (s *Set) GetSQL(name string, priority, minVersion int) (sql string, err err
 }
 
 // ApplyAll applies all migrations for all services.
-func (s *Set) ApplyAll(skipVersionCheck bool) (int, error) {
+func (s *Set) ApplyAll(skipVersionCheck bool, envVersion string) (int, error) {
 	var (
 		n, ver, minVersion, curVersion int
 		err                            error
@@ -263,7 +292,7 @@ func (s *Set) ApplyAll(skipVersionCheck bool) (int, error) {
 				minVersion = curVersion
 			}
 
-			num, lastVersion, err := s.Apply(service, priority, minVersion, curVersion)
+			num, lastVersion, err := s.Apply(service, priority, minVersion, curVersion, envVersion)
 			if err != nil {
 				s.log.Error().Err(err).Msgf("failed to apply migrations for %s", service)
 				return n, fmt.Errorf("failed to apply migrations for %s", service)
@@ -281,8 +310,8 @@ func (s *Set) ApplyAll(skipVersionCheck bool) (int, error) {
 	return n, nil
 }
 
-// SkipAll marked all migrations as finished without applying them
-func (s *Set) SkipAll() (int, error) {
+// FakeAll marked all migrations as finished without applying them
+func (s *Set) FakeAll() (int, error) {
 	servicesWithLastVersion := make(map[string]int)
 	n := 0
 
@@ -312,4 +341,36 @@ func (s *Set) SkipAll() (int, error) {
 	}
 
 	return n, nil
+}
+
+// CheckMigrationHash verifies if all hashes of migrations are equal to those in migration table
+func (s *Set) CheckMigrationHash() (allEqual bool, list []string, err error) {
+	var hash string
+
+	allEqual = true
+
+	for priority := range s.data {
+		for name, service := range s.data[priority] {
+			for ver, migrationList := range service {
+				for _, migration := range migrationList {
+					sLog := migration_log.MigrationServicesLog{
+						MigrationServiceName: name,
+						Priority:             priority,
+						Version:              ver,
+						FileName:             filepath.Base(migration.Path),
+					}
+					hash, err = s.repo.GetHashFromMigrationServiceLog(context.Background(), sLog)
+					if err != nil {
+						return false, nil, err
+					}
+					if hash != migration.Hash {
+						allEqual = false
+						list = append(list, migration.Path)
+					}
+				}
+			}
+		}
+	}
+
+	return
 }

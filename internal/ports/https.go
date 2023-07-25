@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/webdevelop-pro/go-common/logger"
-	"github.com/webdevelop-pro/go-common/server"
+	"github.com/webdevelop-pro/lib/logger"
+	"github.com/webdevelop-pro/lib/server"
 )
 
 type HttpServer struct {

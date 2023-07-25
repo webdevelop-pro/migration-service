@@ -1,6 +1,8 @@
 package migration
 
 import (
+	"crypto/md5"
+	"fmt"
 	"strings"
 )
 
@@ -8,18 +10,24 @@ import (
 type Migration struct {
 	AllowError bool
 	NoAuto     bool
+	EnvRegex   string
 	Path       string
-	Queries    []string
+	Query      string
+	Hash       string
 }
 
-func NewMigration(queries []string, path string) Migration {
+func NewMigration(query string, path string) Migration {
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(query)))
+
 	mig := Migration{
 		AllowError: false,
-		Queries:    queries,
+		EnvRegex:   "",
+		Query:      query,
 		Path:       path,
+		Hash:       hash,
 	}
 
-	lines := strings.Split(queries[0], "\n")
+	lines := strings.Split(query, "\n")
 	for _, line := range lines {
 		line = strings.Replace(line, "\t", "", -1)
 		// we don't have any comments at all
@@ -38,6 +46,9 @@ func NewMigration(queries []string, path string) Migration {
 						mig.AllowError = true
 						break
 					}
+				} else if vals[0] == "required_env" {
+					mig.EnvRegex = strings.Trim(vals[1], " ")
+					break
 				}
 			}
 		}
