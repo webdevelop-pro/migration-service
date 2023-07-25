@@ -110,9 +110,9 @@ CREATE TABLE IF NOT EXISTS migration_service_logs
     updated_at              timestamptz            NOT NULL DEFAULT now()
 );
 
-ALTER TABLE public.migration_service_logs DROP CONSTRAINT IF EXISTS migration_service_logs_pk;
+ALTER TABLE public.migration_service_logs DROP CONSTRAINT IF EXISTS migration_service_logs_complex_uindex;
 ALTER TABLE public.migration_service_logs
-    ADD CONSTRAINT migration_service_logs_pk
+    ADD CONSTRAINT migration_service_logs_complex_uindex
         UNIQUE (migration_services_name, priority, version, file_name);
 
 CREATE OR REPLACE TRIGGER migration_service_logs_updated_at_timestamp
@@ -135,12 +135,20 @@ CREATE INDEX IF NOT EXISTS migration_service_logs_hash_index
 
 // WriteMigrationServiceLog inserts row to migration_service_logs
 func (r *Repository) WriteMigrationServiceLog(ctx context.Context, log migration_log.MigrationServicesLog) error {
+	var pgErr *pgconn.PgError
 	const query = `INSERT INTO migration_service_logs (migration_services_name, priority, version, file_name, "sql", hash) 
 		VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(migration_services_name, priority, version, file_name) DO UPDATE 
 		SET "sql"=$5, hash=$6`
 	_, err := r.db.Exec(ctx, query, log.MigrationServiceName, log.Priority, log.Version, log.FileName, log.SQL, log.Hash)
 
 	if err != nil {
+		sErr := err.Error()
+		if len(sErr) > 55 && sErr[0:55] == "ERROR: relation \"migration_service_logs\" does not exist" {
+			if err := r.CreateMigrationTable(context.Background()); err != nil {
+				return errors.Wrapf(err, "query %s failed, %s ", query, pgErr.Message)
+			}
+			return r.WriteMigrationServiceLog(ctx, log)
+		}
 		return errors.Wrapf(err, "query %s failed, params: MigrationServiceName = %s, Priority = %d, "+
 			"Version = %d, FileName = %s, SQL = %s, Hash = %s", query, log.MigrationServiceName, log.Priority,
 			log.Version, log.FileName, log.SQL, log.Hash)

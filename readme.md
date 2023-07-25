@@ -43,7 +43,7 @@ There is two main migration service usage:
 ```
 will apply all new migrations locally
 - automatically applying migrations during merging to dev|stage|master branch
-Once github PR reviewed and merged to one of those branches service will execute new migrations automatically.
+- Once github PR reviewed and merged to one of those branches service will execute new migrations automatically.
 
 [Check](example/) full usage example [here](example/)
 
