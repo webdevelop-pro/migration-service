@@ -3,7 +3,7 @@
 Migration service stands as a beacon of resilience and security in the realm of database migrations. It's expertly designed to handle the intricacies of database schema conversion, data migration, and seed uploading with unmatched proficiency. At the heart of the service lies a straightforward yet powerful concept: maintaining the database schema state within the `migration_services` table.
 
 - Each migration within our service is assigned a unique revision, ensuring a meticulous and organized execution in ascending order.
-- Migration service can be used to run tests, see [tests examples](/tests/migrations/RequiredEnv/BranchInvertion/01_user/01_init.sql#1)
+- Migration service can be used to run tests, see [tests examples](/tests/migrations/RequiredEnv/BranchInvertion/01_user/01_init.sql#L1) or [in-file-configuration](#file-structure)
 
 ## Structure
 All migrations files located in the `migrations/` folder.
