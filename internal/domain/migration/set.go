@@ -211,7 +211,7 @@ func (s *Set) Apply(name string, priority, minVersion, curVersion int, envName s
 
 			if curVersion < ver {
 				if err = s.repo.UpdateServiceVersion(context.Background(), name, ver); err != nil {
-					return n, lastVersion, errors.Wrapf(err, "cannot update migration_service, ver: %d, file: %s", ver, mig.Path)
+					return n, lastVersion, errors.Wrapf(err, "cannot update migration_services, ver: %d, file: %s", ver, mig.Path)
 				}
 			}
 
@@ -334,7 +334,7 @@ func (s *Set) FakeAll() (int, error) {
 
 		if curVersion < version {
 			if err := s.repo.UpdateServiceVersion(context.Background(), name, version); err != nil {
-				return n, errors.Wrapf(err, "cannot update migration_service %s, ver: %d", name, version)
+				return n, errors.Wrapf(err, "cannot update migration_services %s, ver: %d", name, version)
 			}
 		}
 		n++
